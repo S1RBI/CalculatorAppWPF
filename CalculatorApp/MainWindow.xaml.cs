@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -17,6 +16,11 @@ using System.Text;
 using System.Reflection;
 using System.Configuration;
 using Newtonsoft.Json;
+using System.Windows.Data;
+using System.Net.Http;
+using System.Windows.Markup;
+using System.Windows.Controls.Primitives;
+using System.Windows.Media.Effects;
 
 namespace CalculatorApp
 {
@@ -43,15 +47,38 @@ namespace CalculatorApp
 
             // Инициализация системы паролей и цен
             PasswordManager.Initialize();
-            PriceManager.LoadPrices();
+
+            // Асинхронная инициализация с поддержкой облака
+            _ = InitializeAsync();
+
+            DataContext = this;
+        }
+
+        private async Task InitializeAsync()
+        {
+            try
+            {
+                // Пытаемся подключиться к Supabase
+                await PriceManager.InitializeWithCloudAsync();
+
+                // Обновляем заголовок окна с информацией о режиме
+                this.Title = $"Калькулятор покрытий - {PriceManager.GetModeString()}";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка инициализации: {ex.Message}\nРаботаем в локальном режиме.",
+                    "Предупреждение", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+                // Fallback к локальному режиму
+                PriceManager.LoadPrices();
+                this.Title = "Калькулятор покрытий - Локальный режим";
+            }
 
             // Добавляем один расчет по умолчанию
             AddNewCalculation();
 
             // Загружаем цены для админ-панели
             LoadPricesForAdmin();
-
-            DataContext = this;
         }
 
         #region Навигация
@@ -135,7 +162,6 @@ namespace CalculatorApp
 
                 var result = MessageBox.Show("Удалить этот расчет?", "Подтверждение",
                     MessageBoxButton.YesNo, MessageBoxImage.Question);
-
                 if (result == MessageBoxResult.Yes)
                 {
                     _coverageItems.Remove(item);
@@ -200,6 +226,7 @@ namespace CalculatorApp
                 To = 1,
                 Duration = TimeSpan.FromMilliseconds(200)
             };
+
             notification.BeginAnimation(UIElement.OpacityProperty, fadeInAnimation);
 
             // Ждем 2.5 секунды
@@ -227,12 +254,255 @@ namespace CalculatorApp
 
         private bool ValidateAdminPassword()
         {
+            // Только облачная аутентификация
             var loginWindow = new AdminLoginWindow();
             loginWindow.Owner = this;
-
             var result = loginWindow.ShowDialog();
             return result == true;
         }
+
+        // Методы для управления видимостью паролей
+        private void ToggleCurrentPasswordVisibility(object sender, RoutedEventArgs e)
+        {
+            var isVisible = CurrentPasswordTextBox.Visibility == Visibility.Visible;
+
+            if (isVisible)
+            {
+                CurrentPasswordBox.Password = CurrentPasswordTextBox.Text;
+                CurrentPasswordTextBox.Visibility = Visibility.Collapsed;
+                CurrentPasswordBox.Visibility = Visibility.Visible;
+                CurrentPasswordBox.Focus();
+
+                CurrentEyeOpenIcon.Visibility = Visibility.Collapsed;
+                CurrentEyeClosedIcon.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                CurrentPasswordTextBox.Text = CurrentPasswordBox.Password;
+                CurrentPasswordBox.Visibility = Visibility.Collapsed;
+                CurrentPasswordTextBox.Visibility = Visibility.Visible;
+                CurrentPasswordTextBox.Focus();
+                CurrentPasswordTextBox.CaretIndex = CurrentPasswordTextBox.Text.Length;
+
+                CurrentEyeClosedIcon.Visibility = Visibility.Collapsed;
+                CurrentEyeOpenIcon.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void ToggleNewPasswordVisibility(object sender, RoutedEventArgs e)
+        {
+            var isVisible = NewPasswordTextBox.Visibility == Visibility.Visible;
+
+            if (isVisible)
+            {
+                NewPasswordBox.Password = NewPasswordTextBox.Text;
+                NewPasswordTextBox.Visibility = Visibility.Collapsed;
+                NewPasswordBox.Visibility = Visibility.Visible;
+                NewPasswordBox.Focus();
+
+                NewEyeOpenIcon.Visibility = Visibility.Collapsed;
+                NewEyeClosedIcon.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                NewPasswordTextBox.Text = NewPasswordBox.Password;
+                NewPasswordBox.Visibility = Visibility.Collapsed;
+                NewPasswordTextBox.Visibility = Visibility.Visible;
+                NewPasswordTextBox.Focus();
+                NewPasswordTextBox.CaretIndex = NewPasswordTextBox.Text.Length;
+
+                NewEyeClosedIcon.Visibility = Visibility.Collapsed;
+                NewEyeOpenIcon.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void ToggleConfirmPasswordVisibility(object sender, RoutedEventArgs e)
+        {
+            var isVisible = ConfirmPasswordTextBox.Visibility == Visibility.Visible;
+
+            if (isVisible)
+            {
+                ConfirmPasswordBox.Password = ConfirmPasswordTextBox.Text;
+                ConfirmPasswordTextBox.Visibility = Visibility.Collapsed;
+                ConfirmPasswordBox.Visibility = Visibility.Visible;
+                ConfirmPasswordBox.Focus();
+
+                ConfirmEyeOpenIcon.Visibility = Visibility.Collapsed;
+                ConfirmEyeClosedIcon.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                ConfirmPasswordTextBox.Text = ConfirmPasswordBox.Password;
+                ConfirmPasswordBox.Visibility = Visibility.Collapsed;
+                ConfirmPasswordTextBox.Visibility = Visibility.Visible;
+                ConfirmPasswordTextBox.Focus();
+                ConfirmPasswordTextBox.CaretIndex = ConfirmPasswordTextBox.Text.Length;
+
+                ConfirmEyeClosedIcon.Visibility = Visibility.Collapsed;
+                ConfirmEyeOpenIcon.Visibility = Visibility.Visible;
+            }
+        }
+
+        // Метод смены пароля (работает с паролем Supabase)
+        private async void ChangePasswordClick(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ErrorMessage.Visibility = Visibility.Collapsed;
+
+                var currentPassword = CurrentPasswordTextBox.Visibility == Visibility.Visible
+                    ? CurrentPasswordTextBox.Text
+                    : CurrentPasswordBox.Password;
+
+                var newPassword = NewPasswordTextBox.Visibility == Visibility.Visible
+                    ? NewPasswordTextBox.Text
+                    : NewPasswordBox.Password;
+
+                var confirmPassword = ConfirmPasswordTextBox.Visibility == Visibility.Visible
+                    ? ConfirmPasswordTextBox.Text
+                    : ConfirmPasswordBox.Password;
+
+                // Проверки
+                if (string.IsNullOrWhiteSpace(currentPassword))
+                {
+                    ShowPasswordError("Введите текущий пароль");
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(newPassword))
+                {
+                    ShowPasswordError("Введите новый пароль");
+                    return;
+                }
+
+                if (newPassword.Length < 6)
+                {
+                    ShowPasswordError("Новый пароль должен содержать минимум 6 символов");
+                    return;
+                }
+
+                if (newPassword != confirmPassword)
+                {
+                    ShowPasswordError("Пароли не совпадают");
+                    return;
+                }
+
+                if (newPassword == currentPassword)
+                {
+                    ShowPasswordError("Новый пароль должен отличаться от текущего");
+                    return;
+                }
+
+                // Показываем индикатор загрузки
+                var loadingWindow = ShowLoadingWindow("Смена пароля...");
+
+                try
+                {
+                    // Сначала проверяем текущий пароль, повторно войдя в систему
+                    var currentEmail = await SupabaseAuthManager.GetCurrentUserEmailAsync();
+                    if (string.IsNullOrEmpty(currentEmail))
+                    {
+                        ShowPasswordError("Ошибка: пользователь не авторизован");
+                        return;
+                    }
+
+                    // Пытаемся войти с текущим паролем для проверки
+                    var currentPasswordValid = await SupabaseAuthManager.SignInAsync(currentEmail, currentPassword);
+
+                    if (!currentPasswordValid)
+                    {
+                        ShowPasswordError("Неверный текущий пароль");
+                        return;
+                    }
+
+                    // Меняем пароль в Supabase
+                    var success = await SupabaseAuthManager.UpdatePasswordAsync(newPassword);
+
+                    if (success)
+                    {
+                        MessageBox.Show("Пароль успешно изменен в базе данных!", "Успех",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+
+                        // Очищаем поля
+                        ClearPasswordFields();
+                    }
+                    else
+                    {
+                        ShowPasswordError("Ошибка при смене пароля в базе данных");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ShowPasswordError($"Ошибка при смене пароля: {ex.Message}");
+                }
+                finally
+                {
+                    loadingWindow.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowPasswordError($"Ошибка: {ex.Message}");
+            }
+        }
+
+        // Информация о смене пароля в Supabase
+        private void ResetPasswordClick(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var message = "Сброс пароля Supabase необходимо выполнить через:\n\n" +
+                             "1. Панель управления Supabase (Dashboard)\n" +
+                             "2. Функцию восстановления пароля по email\n" +
+                             "3. SQL команды в редакторе базы данных\n\n" +
+                             "Данная функция предназначена для управления паролем в облачной базе данных.";
+
+                MessageBox.Show(message, "Информация о сбросе пароля",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                ShowPasswordError($"Ошибка: {ex.Message}");
+            }
+        }
+
+        private void ShowPasswordError(string message)
+        {
+            ErrorMessageText.Text = message;
+            ErrorMessage.Visibility = Visibility.Visible;
+        }
+
+        private async void ShowCurrentPassword_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var currentEmail = await SupabaseAuthManager.GetCurrentUserEmailAsync();
+                var message = $"По всем вопросам и правкам обращаться на почту: {currentEmail}\n\n" +
+                             "Это пароль для входа в базу данных Supabase.\n" +
+                             "Для смены пароля используйте форму выше.\n\n" +
+                             "Примечание: Минимальная длина пароля в Supabase: 6 символов";
+
+                MessageBox.Show(message, "Информация о пароле Supabase",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка получения информации: {ex.Message}", "Ошибка",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ClearPasswordFields()
+        {
+            CurrentPasswordBox.Clear();
+            CurrentPasswordTextBox.Clear();
+            NewPasswordBox.Clear();
+            NewPasswordTextBox.Clear();
+            ConfirmPasswordBox.Clear();
+            ConfirmPasswordTextBox.Clear();
+        }
+
+
 
         private void LoadPricesForAdmin()
         {
@@ -241,14 +511,14 @@ namespace CalculatorApp
             PriceItemsControl.ItemsSource = _priceItems;
         }
 
-        private void SavePrices_Click(object sender, RoutedEventArgs e)
+        private async void SavePrices_Click(object sender, RoutedEventArgs e)
         {
             try
             {
                 // Проверяем валидность данных
                 var invalidItems = _priceItems.Where(p => p.Price <= 0 ||
-                                                        string.IsNullOrWhiteSpace(p.Type) ||
-                                                        string.IsNullOrWhiteSpace(p.Thickness)).ToList();
+                    string.IsNullOrWhiteSpace(p.Type) ||
+                    string.IsNullOrWhiteSpace(p.Thickness)).ToList();
 
                 if (invalidItems.Any())
                 {
@@ -257,17 +527,39 @@ namespace CalculatorApp
                     return;
                 }
 
-                // Сохраняем цены
-                PriceManager.UpdatePrices(_priceItems.ToList());
-                PriceManager.SavePrices();
+                // Показываем индикатор загрузки
+                var loadingWindow = ShowLoadingWindow("Сохранение данных...");
 
-                MessageBox.Show("Цены успешно сохранены!", "Успех",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-
-                // Обновляем существующие расчеты
-                foreach (var item in _coverageItems)
+                try
                 {
-                    item.RefreshPrices();
+                    // Сохраняем цены
+                    PriceManager.UpdatePrices(_priceItems.ToList());
+                    var success = await PriceManager.SavePricesAsync();
+
+                    loadingWindow.Close();
+
+                    if (success)
+                    {
+                        var mode = PriceManager.IsOnlineMode() ? "в облаке и локально" : "локально";
+                        MessageBox.Show($"Цены успешно сохранены {mode}!", "Успех",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+
+                        // Обновляем существующие расчеты
+                        foreach (var item in _coverageItems)
+                        {
+                            item.RefreshPrices();
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("Ошибка сохранения данных", "Ошибка",
+                            MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+                catch (Exception saveEx)
+                {
+                    loadingWindow.Close();
+                    throw saveEx;
                 }
             }
             catch (Exception ex)
@@ -277,6 +569,43 @@ namespace CalculatorApp
             }
         }
 
+        private Window ShowLoadingWindow(string message)
+        {
+            var loadingWindow = new Window
+            {
+                Width = 300,
+                Height = 150,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                WindowStyle = WindowStyle.None,
+                Background = new SolidColorBrush(Colors.White),
+                Content = new StackPanel
+                {
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            Text = message,
+                            FontSize = 16,
+                            HorizontalAlignment = HorizontalAlignment.Center,
+                            Margin = new Thickness(0, 0, 0, 20)
+                        },
+                        new System.Windows.Controls.ProgressBar
+                        {
+                            IsIndeterminate = true,
+                            Width = 200,
+                            Height = 20
+                        }
+                    }
+                }
+            };
+
+            loadingWindow.Show();
+            return loadingWindow;
+        }
+
         private void ResetPrices_Click(object sender, RoutedEventArgs e)
         {
             var result = MessageBox.Show(
@@ -284,14 +613,12 @@ namespace CalculatorApp
                 "Подтверждение сброса",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
-
             if (result == MessageBoxResult.Yes)
             {
                 try
                 {
                     PriceManager.ResetToDefaults();
                     LoadPricesForAdmin();
-
                     MessageBox.Show("Цены сброшены к значениям по умолчанию.", "Сброс выполнен",
                         MessageBoxButton.OK, MessageBoxImage.Information);
                 }
@@ -305,190 +632,19 @@ namespace CalculatorApp
 
         #endregion
 
-        #region Смена пароля
+        #region Информация о системе
 
-        private void ToggleCurrentPasswordVisibility(object sender, RoutedEventArgs e)
+        private void ShowSystemInfo_Click(object sender, RoutedEventArgs e)
         {
-            TogglePasswordVisibility(
-                CurrentPasswordBox,
-                CurrentPasswordTextBox,
-                CurrentEyeClosedIcon,
-                CurrentEyeOpenIcon
-            );
-        }
-
-        private void ToggleNewPasswordVisibility(object sender, RoutedEventArgs e)
-        {
-            TogglePasswordVisibility(
-                NewPasswordBox,
-                NewPasswordTextBox,
-                NewEyeClosedIcon,
-                NewEyeOpenIcon
-            );
-        }
-
-        private void ToggleConfirmPasswordVisibility(object sender, RoutedEventArgs e)
-        {
-            TogglePasswordVisibility(
-                ConfirmPasswordBox,
-                ConfirmPasswordTextBox,
-                ConfirmEyeClosedIcon,
-                ConfirmEyeOpenIcon
-            );
-        }
-
-        private void TogglePasswordVisibility(PasswordBox passwordBox, TextBox textBox, UIElement eyeClosedIcon, UIElement eyeOpenIcon)
-        {
-            if (passwordBox.Visibility == Visibility.Visible)
-            {
-                // Переключаем на TextBox для показа пароля
-                textBox.Text = passwordBox.Password;
-                passwordBox.Visibility = Visibility.Collapsed;
-                textBox.Visibility = Visibility.Visible;
-                textBox.Focus();
-                textBox.CaretIndex = textBox.Text.Length;
-
-                // Меняем иконку на открытый глаз
-                eyeClosedIcon.Visibility = Visibility.Collapsed;
-                eyeOpenIcon.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                // Переключаем на PasswordBox для сокрытия пароля
-                passwordBox.Password = textBox.Text;
-                textBox.Visibility = Visibility.Collapsed;
-                passwordBox.Visibility = Visibility.Visible;
-                passwordBox.Focus();
-
-                // Меняем иконку на закрытый глаз
-                eyeOpenIcon.Visibility = Visibility.Collapsed;
-                eyeClosedIcon.Visibility = Visibility.Visible;
-            }
-        }
-
-        private void ChangePasswordClick(object sender, RoutedEventArgs e)
-        {
-            ClearErrorMessage();
-
-            // Получаем пароли с учетом текущего состояния (видимый/скрытый)
-            var currentPassword = CurrentPasswordBox.Visibility == Visibility.Visible
-                ? CurrentPasswordBox.Password
-                : CurrentPasswordTextBox.Text;
-
-            var newPassword = NewPasswordBox.Visibility == Visibility.Visible
-                ? NewPasswordBox.Password
-                : NewPasswordTextBox.Text;
-
-            var confirmPassword = ConfirmPasswordBox.Visibility == Visibility.Visible
-                ? ConfirmPasswordBox.Password
-                : ConfirmPasswordTextBox.Text;
-
-            // Проверка заполненности полей
-            if (string.IsNullOrEmpty(currentPassword))
-            {
-                ShowErrorMessage("Введите текущий пароль");
-                CurrentPasswordBox.Focus();
-                return;
-            }
-
-            if (string.IsNullOrEmpty(newPassword))
-            {
-                ShowErrorMessage("Введите новый пароль");
-                NewPasswordBox.Focus();
-                return;
-            }
-
-            if (newPassword.Length < 3)
-            {
-                ShowErrorMessage("Новый пароль должен содержать минимум 3 символа");
-                NewPasswordBox.Focus();
-                return;
-            }
-
-            if (newPassword != confirmPassword)
-            {
-                ShowErrorMessage("Пароли не совпадают");
-                ConfirmPasswordBox.Focus();
-                return;
-            }
-
-            // Пытаемся изменить пароль
-            bool success = PasswordManager.ChangePassword(currentPassword, newPassword);
-
-            if (success)
-            {
-                MessageBox.Show("Пароль успешно изменен!", "Успех",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-                ClearPasswordFields();
-            }
-            else
-            {
-                ShowErrorMessage("Неверный текущий пароль");
-                CurrentPasswordBox.Clear();
-                CurrentPasswordBox.Focus();
-            }
-        }
-
-        private void ResetPasswordClick(object sender, RoutedEventArgs e)
-        {
-            var result = MessageBox.Show(
-                $"Сбросить пароль к значению по умолчанию '{PasswordManager.GetDefaultPassword()}'?",
-                "Подтверждение сброса",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
-            {
-                PasswordManager.ResetToDefault();
-                MessageBox.Show($"Пароль сброшен к значению по умолчанию: {PasswordManager.GetDefaultPassword()}",
-                    "Пароль сброшен", MessageBoxButton.OK, MessageBoxImage.Information);
-                ClearPasswordFields();
-            }
-        }
-
-        private void ShowErrorMessage(string message)
-        {
-            ErrorMessageText.Text = message;
-            ErrorMessage.Visibility = Visibility.Visible;
-        }
-
-        private void ClearErrorMessage()
-        {
-            ErrorMessage.Visibility = Visibility.Collapsed;
-        }
-
-        private void ClearPasswordFields()
-        {
-            // Очищаем и сбрасываем все поля паролей
-            CurrentPasswordBox.Clear();
-            CurrentPasswordTextBox.Clear();
-            NewPasswordBox.Clear();
-            NewPasswordTextBox.Clear();
-            ConfirmPasswordBox.Clear();
-            ConfirmPasswordTextBox.Clear();
-
-            // Сбрасываем видимость всех полей к скрытому состоянию
-            CurrentPasswordBox.Visibility = Visibility.Visible;
-            CurrentPasswordTextBox.Visibility = Visibility.Collapsed;
-            CurrentEyeClosedIcon.Visibility = Visibility.Visible;
-            CurrentEyeOpenIcon.Visibility = Visibility.Collapsed;
-
-            NewPasswordBox.Visibility = Visibility.Visible;
-            NewPasswordTextBox.Visibility = Visibility.Collapsed;
-            NewEyeClosedIcon.Visibility = Visibility.Visible;
-            NewEyeOpenIcon.Visibility = Visibility.Collapsed;
-
-            ConfirmPasswordBox.Visibility = Visibility.Visible;
-            ConfirmPasswordTextBox.Visibility = Visibility.Collapsed;
-            ConfirmEyeClosedIcon.Visibility = Visibility.Visible;
-            ConfirmEyeOpenIcon.Visibility = Visibility.Collapsed;
-
-            ClearErrorMessage();
+            var mode = PriceManager.IsOnlineMode() ? "Облачный режим" : "Локальный режим";
+            MessageBox.Show($"Текущий режим работы: {mode}\n\nВерсия данных: {SupabasePriceManager.GetCurrentVersion()}",
+                "Информация о системе", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         #endregion
 
         public event PropertyChangedEventHandler PropertyChanged;
+
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
@@ -516,10 +672,8 @@ namespace CalculatorApp
                 _type = value;
                 OnPropertyChanged(nameof(Type));
                 OnPropertyChanged(nameof(AvailableThicknesses));
-
                 _thickness = null;
                 OnPropertyChanged(nameof(Thickness));
-
                 UpdateBasePrice();
                 Calculate();
             }
@@ -538,7 +692,9 @@ namespace CalculatorApp
         }
 
         public object[] AvailableThicknesses => PriceManager.GetAvailableThicknesses(_type);
+
         public string[] AvailableTypes => PriceManager.GetAvailableTypes().ToArray();
+
         public string[] AvailableRegions => new[] { "Москва", "МО", "Другой регион" };
 
         public double Area
@@ -548,6 +704,7 @@ namespace CalculatorApp
             {
                 _area = value;
                 OnPropertyChanged(nameof(Area));
+                OnPropertyChanged(nameof(CoefficientDisplay));
                 Calculate();
             }
         }
@@ -570,6 +727,7 @@ namespace CalculatorApp
             {
                 _basePrice = value;
                 OnPropertyChanged(nameof(BasePrice));
+                OnPropertyChanged(nameof(CoefficientDisplay));
             }
         }
 
@@ -581,6 +739,7 @@ namespace CalculatorApp
                 _finalCost = value;
                 OnPropertyChanged(nameof(FinalCost));
                 OnPropertyChanged(nameof(FinalPricePerSquareMeter));
+                OnPropertyChanged(nameof(CoefficientDisplay));
             }
         }
 
@@ -591,6 +750,24 @@ namespace CalculatorApp
                 if (Area <= 0 || FinalCost <= 0)
                     return BasePrice;
                 return FinalCost / Area;
+            }
+        }
+
+        public string CoefficientDisplay
+        {
+            get
+            {
+                if (Area <= 0 || BasePrice <= 0 || HasError)
+                    return "";
+
+                if (Area >= 50 && Area < 70)
+                    return "(x3)";
+                else if (Area >= 70 && Area < 100)
+                    return "(x2)";
+                else if (Area >= 100 && Area < 120)
+                    return "(x1.2)";
+                else
+                    return "";
             }
         }
 
@@ -611,6 +788,7 @@ namespace CalculatorApp
             {
                 _hasError = value;
                 OnPropertyChanged(nameof(HasError));
+                OnPropertyChanged(nameof(CoefficientDisplay));
             }
         }
 
@@ -631,6 +809,7 @@ namespace CalculatorApp
             UpdateBasePrice();
             Calculate();
             OnPropertyChanged(nameof(AvailableThicknesses));
+            OnPropertyChanged(nameof(CoefficientDisplay));
         }
 
         private void UpdateBasePrice()
@@ -682,7 +861,7 @@ namespace CalculatorApp
             {
                 cost *= 2.0;
             }
-            else if (Area >= 100 && Area <= 120)
+            else if (Area >= 100 && Area < 120)
             {
                 cost *= 1.2;
             }
@@ -691,6 +870,7 @@ namespace CalculatorApp
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
+
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
@@ -734,13 +914,14 @@ namespace CalculatorApp
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
+
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 
-    public static class PriceManager
+    public static partial class PriceManager
     {
         // Сохраняем JSON в папку данных пользователя (AppData)
         private static readonly string AppDataFolder = Path.Combine(
@@ -749,7 +930,6 @@ namespace CalculatorApp
         );
 
         private static readonly string ConfigFile = Path.Combine(AppDataFolder, "prices.json");
-
         private static Dictionary<string, Dictionary<string, double>> _prices;
 
         public static void LoadPrices()
@@ -848,7 +1028,7 @@ namespace CalculatorApp
 
         public static double GetPrice(string type, string thickness)
         {
-            if (_prices.ContainsKey(type) && _prices[type].ContainsKey(thickness))
+            if (_prices != null && _prices.ContainsKey(type) && _prices[type].ContainsKey(thickness))
             {
                 return _prices[type][thickness];
             }
@@ -859,16 +1039,19 @@ namespace CalculatorApp
         {
             var items = new List<PriceItem>();
 
-            foreach (var type in _prices.Keys)
+            if (_prices != null)
             {
-                foreach (var thickness in _prices[type].Keys)
+                foreach (var type in _prices.Keys)
                 {
-                    items.Add(new PriceItem
+                    foreach (var thickness in _prices[type].Keys)
                     {
-                        Type = type,
-                        Thickness = thickness,
-                        Price = _prices[type][thickness]
-                    });
+                        items.Add(new PriceItem
+                        {
+                            Type = type,
+                            Thickness = thickness,
+                            Price = _prices[type][thickness]
+                        });
+                    }
                 }
             }
 
@@ -877,6 +1060,12 @@ namespace CalculatorApp
 
         public static void UpdatePrices(List<PriceItem> items)
         {
+            // Инициализируем _prices если он null
+            if (_prices == null)
+            {
+                _prices = new Dictionary<string, Dictionary<string, double>>();
+            }
+
             _prices.Clear();
 
             foreach (var item in items)
@@ -885,18 +1074,23 @@ namespace CalculatorApp
                 {
                     _prices[item.Type] = new Dictionary<string, double>();
                 }
+
                 _prices[item.Type][item.Thickness] = item.Price;
             }
         }
 
         public static List<string> GetAvailableTypes()
         {
-            return new List<string>(_prices.Keys);
+            if (_prices != null)
+            {
+                return new List<string>(_prices.Keys);
+            }
+            return new List<string>();
         }
 
         public static object[] GetAvailableThicknesses(string type)
         {
-            if (string.IsNullOrEmpty(type) || !_prices.ContainsKey(type))
+            if (string.IsNullOrEmpty(type) || _prices == null || !_prices.ContainsKey(type))
                 return new object[0];
 
             var thicknesses = _prices[type].Keys.ToList();
@@ -915,7 +1109,7 @@ namespace CalculatorApp
     public static class PasswordManager
     {
         // ВСТРОЕННЫЙ ПАРОЛЬ ПО УМОЛЧАНИЮ - ИЗМЕНИТЕ ЭТО ЗНАЧЕНИЕ ДЛЯ СОЗДАНИЯ КАСТОМНОЙ ВЕРСИИ
-        private const string DEFAULT_EMBEDDED_PASSWORD = "admin123";    // ← Измените этот пароль
+        private const string DEFAULT_EMBEDDED_PASSWORD = "admin123"; // ← Измените этот пароль
 
         // Сохраняем пароль в папку данных пользователя (AppData)
         private static readonly string AppDataFolder = Path.Combine(
@@ -924,7 +1118,6 @@ namespace CalculatorApp
         );
 
         private static readonly string PasswordFile = Path.Combine(AppDataFolder, ".Fi8Hhc80jbT2c9c1");
-
         private static string _currentPasswordHash;
 
         public static void Initialize()
@@ -990,6 +1183,7 @@ namespace CalculatorApp
 
                 // Сохраняем зашифрованный хеш в файл
                 SavePasswordHash();
+
                 return true;
             }
             catch
@@ -1059,6 +1253,25 @@ namespace CalculatorApp
 
     #endregion
 
+    public class WidthToBooleanConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value is double width)
+            {
+                return width <= 960;
+            }
+            return false;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+
+
     // Окно авторизации администратора
     public partial class AdminLoginWindow : Window
     {
@@ -1071,52 +1284,112 @@ namespace CalculatorApp
 
         private void InitializeAdminLoginWindow()
         {
-            Title = "Авторизация администратора";
-            Width = 400;
-            Height = 250;
+            Title = "Вход в админ-панель";
+            Width = 420;
+            Height = 380;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             ResizeMode = ResizeMode.NoResize;
-            WindowStyle = WindowStyle.ToolWindow;
-            Background = new SolidColorBrush(Color.FromRgb(248, 249, 250));
+            WindowStyle = WindowStyle.None;
+            AllowsTransparency = true;
+            Background = Brushes.Transparent;
+
+            // Основная граница с тенью
+            var mainBorder = new Border
+            {
+                Background = Brushes.White,
+                CornerRadius = new CornerRadius(16),
+                Effect = new DropShadowEffect
+                {
+                    Color = Colors.Black,
+                    Opacity = 0.15,
+                    BlurRadius = 20,
+                    ShadowDepth = 8
+                }
+            };
+
+            // Возможность перетаскивания окна
+            mainBorder.MouseLeftButtonDown += (s, e) =>
+            {
+                if (e.ChangedButton == MouseButton.Left)
+                    DragMove();
+            };
 
             var mainGrid = new Grid();
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Заголовок
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Поле пароля
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Кнопки
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Сообщение об ошибке
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Пространство
 
-            // Заголовок
-            var titleBorder = new Border
+            // Заголовок с иконкой
+            var titlePanel = new StackPanel
             {
-                Background = new SolidColorBrush(Color.FromRgb(0, 165, 80)),
-                Padding = new Thickness(20),
-                Margin = new Thickness(0, 0, 0, 20)
+                Orientation = Orientation.Vertical,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(32, 24, 32, 20)
             };
+
+            // Иконка безопасности
+            var iconBorder = new Border
+            {
+                Width = 48,
+                Height = 48,
+                Background = new LinearGradientBrush(
+                    Color.FromRgb(139, 92, 246),
+                    Color.FromRgb(168, 85, 247),
+                    90),
+                CornerRadius = new CornerRadius(24),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 12)
+            };
+
+            var iconText = new TextBlock
+            {
+                Text = "🔐",
+                FontSize = 22,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = Brushes.White
+            };
+
+            iconBorder.Child = iconText;
+            titlePanel.Children.Add(iconBorder);
 
             var titleText = new TextBlock
             {
-                Text = "🔐 Вход в административную панель",
-                Foreground = Brushes.White,
-                FontSize = 16,
+                Text = "Административная панель",
+                FontSize = 18,
                 FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(17, 24, 39)),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+
+            var subtitleText = new TextBlock
+            {
+                Text = "Введите пароль для продолжения",
+                FontSize = 14,
+                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
                 HorizontalAlignment = HorizontalAlignment.Center
             };
 
-            titleBorder.Child = titleText;
-            Grid.SetRow(titleBorder, 0);
-            mainGrid.Children.Add(titleBorder);
+            titlePanel.Children.Add(titleText);
+            titlePanel.Children.Add(subtitleText);
+
+            Grid.SetRow(titlePanel, 0);
+            mainGrid.Children.Add(titlePanel);
 
             // Поле ввода пароля
             var passwordPanel = new StackPanel
             {
-                Margin = new Thickness(20, 0, 20, 20)
+                Margin = new Thickness(32, 0, 32, 20)
             };
 
             var passwordLabel = new TextBlock
             {
-                Text = "Пароль администратора:",
+                Text = "Пароль",
                 FontSize = 14,
-                FontWeight = FontWeights.Medium,
+                FontWeight = FontWeights.SemiBold,
                 Margin = new Thickness(0, 0, 0, 8),
                 Foreground = new SolidColorBrush(Color.FromRgb(17, 24, 39))
             };
@@ -1124,48 +1397,82 @@ namespace CalculatorApp
             passwordPanel.Children.Add(passwordLabel);
 
             // Контейнер для пароля с кнопкой
-            var passwordContainer = new Grid();
+            var passwordContainer = new Grid
+            {
+                Height = 48
+            };
 
             var passwordBox = new PasswordBox
             {
                 Name = "AdminPasswordBox",
-                Height = 40,
-                FontSize = 14,
-                Padding = new Thickness(12, 0, 45, 0),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(229, 231, 235)),
-                BorderThickness = new Thickness(1),
+                Height = 48,
+                FontSize = 15,
+                Padding = new Thickness(16, 0, 50, 0),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(209, 213, 219)),
+                BorderThickness = new Thickness(2, 2, 2, 2),
                 Background = Brushes.White,
-                VerticalContentAlignment = VerticalAlignment.Center
+                VerticalContentAlignment = VerticalAlignment.Center,
+                PasswordChar = '●'
+            };
+
+            // Стили для фокуса
+            passwordBox.GotFocus += (s, e) =>
+            {
+                passwordBox.BorderBrush = new SolidColorBrush(Color.FromRgb(139, 92, 246));
+            };
+            passwordBox.LostFocus += (s, e) =>
+            {
+                passwordBox.BorderBrush = new SolidColorBrush(Color.FromRgb(209, 213, 219));
             };
 
             var passwordTextBox = new TextBox
             {
                 Name = "AdminPasswordTextBox",
-                Height = 40,
-                FontSize = 14,
-                Padding = new Thickness(12, 0, 45, 0),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(229, 231, 235)),
-                BorderThickness = new Thickness(1),
+                Height = 48,
+                FontSize = 15,
+                Padding = new Thickness(16, 0, 50, 0),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(209, 213, 219)),
+                BorderThickness = new Thickness(2, 2, 2, 2),
                 Background = Brushes.White,
                 VerticalContentAlignment = VerticalAlignment.Center,
                 Visibility = Visibility.Collapsed
             };
 
+            // Стили для фокуса
+            passwordTextBox.GotFocus += (s, e) =>
+            {
+                passwordTextBox.BorderBrush = new SolidColorBrush(Color.FromRgb(139, 92, 246));
+            };
+            passwordTextBox.LostFocus += (s, e) =>
+            {
+                passwordTextBox.BorderBrush = new SolidColorBrush(Color.FromRgb(209, 213, 219));
+            };
+
             var toggleButton = new Button
             {
-                Width = 35,
-                Height = 35,
+                Width = 40,
+                Height = 40,
                 Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
+                BorderThickness = new Thickness(0, 0, 0, 0),
                 HorizontalAlignment = HorizontalAlignment.Right,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 5, 0),
+                Margin = new Thickness(0, 0, 8, 0),
                 Cursor = Cursors.Hand,
                 ToolTip = "Показать/скрыть пароль"
             };
 
-            // Иконка глаза
-            var eyeCanvas = new Canvas
+            // Эффект наведения
+            toggleButton.MouseEnter += (s, e) =>
+            {
+                toggleButton.Background = new SolidColorBrush(Color.FromRgb(243, 244, 246));
+            };
+            toggleButton.MouseLeave += (s, e) =>
+            {
+                toggleButton.Background = Brushes.Transparent;
+            };
+
+            // Иконка глаза (векторная)
+            var eyeGrid = new Grid
             {
                 Width = 16,
                 Height = 16,
@@ -1173,21 +1480,31 @@ namespace CalculatorApp
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            // Создаем закрытый глаз (по умолчанию)
+            // Закрытый глаз (по умолчанию)
+            var eyeClosedCanvas = new Canvas
+            {
+                Name = "EyeClosedIcon",
+                Visibility = Visibility.Visible
+            };
+
+            // Глаз
             var eyePath = new System.Windows.Shapes.Path
             {
-                Fill = new SolidColorBrush(Color.FromRgb(107, 114, 128)), // TextSecondaryBrush
+                Fill = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
                 Data = Geometry.Parse("M1,8 C1,8 3.5,3 8,3 C12.5,3 15,8 15,8 C15,8 12.5,13 8,13 C3.5,13 1,8 1,8 Z")
             };
 
+            // Зрачок
             var eyePupil = new System.Windows.Shapes.Ellipse
             {
                 Width = 4,
                 Height = 4,
-                Fill = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
-                Margin = new Thickness(6, 6, 0, 0)
+                Fill = new SolidColorBrush(Color.FromRgb(107, 114, 128))
             };
+            Canvas.SetLeft(eyePupil, 6);
+            Canvas.SetTop(eyePupil, 6);
 
+            // Линия перечеркивания
             var strikethrough = new System.Windows.Shapes.Line
             {
                 X1 = 2,
@@ -1198,17 +1515,68 @@ namespace CalculatorApp
                 StrokeThickness = 1.5
             };
 
-            eyeCanvas.Children.Add(eyePath);
-            eyeCanvas.Children.Add(eyePupil);
-            eyeCanvas.Children.Add(strikethrough);
+            eyeClosedCanvas.Children.Add(eyePath);
+            eyeClosedCanvas.Children.Add(eyePupil);
+            eyeClosedCanvas.Children.Add(strikethrough);
 
-            toggleButton.Content = eyeCanvas;
+            // Открытый глаз
+            var eyeOpenCanvas = new Canvas
+            {
+                Name = "EyeOpenIcon",
+                Visibility = Visibility.Collapsed
+            };
+
+            // Глаз
+            var eyePathOpen = new System.Windows.Shapes.Path
+            {
+                Fill = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                Data = Geometry.Parse("M1,8 C1,8 3.5,3 8,3 C12.5,3 15,8 15,8 C15,8 12.5,13 8,13 C3.5,13 1,8 1,8 Z")
+            };
+
+            // Белок глаза
+            var eyeWhite = new System.Windows.Shapes.Ellipse
+            {
+                Width = 6,
+                Height = 6,
+                Fill = Brushes.White
+            };
+            Canvas.SetLeft(eyeWhite, 5);
+            Canvas.SetTop(eyeWhite, 5);
+
+            // Зрачок
+            var eyePupilOpen = new System.Windows.Shapes.Ellipse
+            {
+                Width = 3,
+                Height = 3,
+                Fill = new SolidColorBrush(Color.FromRgb(107, 114, 128))
+            };
+            Canvas.SetLeft(eyePupilOpen, 6.5);
+            Canvas.SetTop(eyePupilOpen, 6.5);
+
+            eyeOpenCanvas.Children.Add(eyePathOpen);
+            eyeOpenCanvas.Children.Add(eyeWhite);
+            eyeOpenCanvas.Children.Add(eyePupilOpen);
+
+            eyeGrid.Children.Add(eyeClosedCanvas);
+            eyeGrid.Children.Add(eyeOpenCanvas);
+
+            toggleButton.Content = eyeGrid;
 
             passwordContainer.Children.Add(passwordBox);
             passwordContainer.Children.Add(passwordTextBox);
             passwordContainer.Children.Add(toggleButton);
 
+            // Создаем стили со скругленными углами ДО применения
+            var passwordBoxStyle = new Style(typeof(PasswordBox));
+            passwordBoxStyle.Setters.Add(new Setter(Control.TemplateProperty, CreateRoundedPasswordBoxTemplate()));
+            passwordBox.Style = passwordBoxStyle;
+
+            var textBoxStyle = new Style(typeof(TextBox));
+            textBoxStyle.Setters.Add(new Setter(Control.TemplateProperty, CreateRoundedTextBoxTemplate()));
+            passwordTextBox.Style = textBoxStyle;
+
             passwordPanel.Children.Add(passwordContainer);
+
             Grid.SetRow(passwordPanel, 1);
             mainGrid.Children.Add(passwordPanel);
 
@@ -1217,46 +1585,90 @@ namespace CalculatorApp
             {
                 Orientation = Orientation.Horizontal,
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(20, 0, 20, 20)
+                Margin = new Thickness(32, 0, 32, 20)
             };
 
             var loginButton = new Button
             {
-                Content = "Войти",
-                Width = 100,
-                Height = 40,
-                Background = new SolidColorBrush(Color.FromRgb(0, 165, 80)),
+                Content = "🔓 Войти",
+                Width = 140,
+                Height = 48,
+                Background = new LinearGradientBrush(
+                    Color.FromRgb(139, 92, 246),
+                    Color.FromRgb(168, 85, 247),
+                    90),
                 Foreground = Brushes.White,
-                BorderThickness = new Thickness(0),
-                FontSize = 14,
-                FontWeight = FontWeights.Medium,
-                Margin = new Thickness(0, 0, 10, 0),
+                BorderThickness = new Thickness(0, 0, 0, 0),
+                FontSize = 15,
+                FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(0, 0, 12, 0),
                 Cursor = Cursors.Hand
+            };
+
+            // Создаем стиль для кнопки входа ДО применения
+            var loginButtonStyle = new Style(typeof(Button));
+            loginButtonStyle.Setters.Add(new Setter(Control.TemplateProperty, CreateRoundedButtonTemplate()));
+            loginButton.Style = loginButtonStyle;
+
+            loginButton.MouseEnter += (s, e) =>
+            {
+                loginButton.Background = new SolidColorBrush(Color.FromRgb(124, 58, 237));
+            };
+            loginButton.MouseLeave += (s, e) =>
+            {
+                loginButton.Background = new LinearGradientBrush(
+                    Color.FromRgb(139, 92, 246),
+                    Color.FromRgb(168, 85, 247),
+                    90);
             };
 
             var cancelButton = new Button
             {
-                Content = "Отмена",
-                Width = 100,
-                Height = 40,
-                Background = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
-                Foreground = Brushes.White,
-                BorderThickness = new Thickness(0),
-                FontSize = 14,
+                Content = "✕ Отмена",
+                Width = 120,
+                Height = 48,
+                Background = new SolidColorBrush(Color.FromRgb(243, 244, 246)),
+                Foreground = new SolidColorBrush(Color.FromRgb(107, 114, 128)),
+                BorderThickness = new Thickness(2),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(229, 231, 235)),
+                FontSize = 15,
                 FontWeight = FontWeights.Medium,
                 Cursor = Cursors.Hand
             };
 
+            // Создаем стиль для кнопки отмены ДО применения
+            var cancelButtonStyle = new Style(typeof(Button));
+            cancelButtonStyle.Setters.Add(new Setter(Control.TemplateProperty, CreateRoundedButtonTemplate()));
+            cancelButton.Style = cancelButtonStyle;
+
+            cancelButton.MouseEnter += (s, e) =>
+            {
+                cancelButton.Background = new SolidColorBrush(Color.FromRgb(229, 231, 235));
+            };
+            cancelButton.MouseLeave += (s, e) =>
+            {
+                cancelButton.Background = new SolidColorBrush(Color.FromRgb(243, 244, 246));
+            };
+
             buttonPanel.Children.Add(loginButton);
             buttonPanel.Children.Add(cancelButton);
+
             Grid.SetRow(buttonPanel, 2);
             mainGrid.Children.Add(buttonPanel);
 
-            Content = mainGrid;
+            mainBorder.Child = mainGrid;
+            Content = mainBorder;
+
+            // Переменная для отслеживания состояния загрузки
+            var isLoading = false;
 
             // Обработчики событий
             toggleButton.Click += (s, e) =>
             {
+                var eyeGrid = (Grid)toggleButton.Content;
+                var eyeClosedIcon = eyeGrid.Children.Cast<Canvas>().First(c => c.Name == "EyeClosedIcon");
+                var eyeOpenIcon = eyeGrid.Children.Cast<Canvas>().First(c => c.Name == "EyeOpenIcon");
+
                 if (!_isPasswordVisible)
                 {
                     passwordTextBox.Text = passwordBox.Password;
@@ -1265,8 +1677,8 @@ namespace CalculatorApp
                     passwordTextBox.Focus();
                     passwordTextBox.CaretIndex = passwordTextBox.Text.Length;
 
-                    // Обновляем иконку - убираем линию зачеркивания
-                    strikethrough.Visibility = Visibility.Collapsed;
+                    eyeClosedIcon.Visibility = Visibility.Collapsed;
+                    eyeOpenIcon.Visibility = Visibility.Visible;
                     _isPasswordVisible = true;
                 }
                 else
@@ -1276,39 +1688,99 @@ namespace CalculatorApp
                     passwordBox.Visibility = Visibility.Visible;
                     passwordBox.Focus();
 
-                    // Обновляем иконку - показываем линию зачеркивания
-                    strikethrough.Visibility = Visibility.Visible;
+                    eyeOpenIcon.Visibility = Visibility.Collapsed;
+                    eyeClosedIcon.Visibility = Visibility.Visible;
                     _isPasswordVisible = false;
                 }
             };
 
-            loginButton.Click += (s, e) =>
+            loginButton.Click += async (s, e) =>
             {
+                if (isLoading) return;
+
                 var password = _isPasswordVisible ? passwordTextBox.Text : passwordBox.Password;
 
                 if (string.IsNullOrEmpty(password))
                 {
-                    MessageBox.Show("Введите пароль!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    ShowLoginError("Введите пароль для входа");
                     return;
                 }
 
-                if (PasswordManager.ValidatePassword(password))
+                isLoading = true;
+                var originalContent = loginButton.Content;
+                loginButton.Content = "🔄 Проверка...";
+                loginButton.IsEnabled = false;
+                cancelButton.IsEnabled = false;
+
+                try
                 {
-                    DialogResult = true;
-                    Close();
-                }
-                else
-                {
-                    MessageBox.Show("Неверный пароль!", "Ошибка авторизации", MessageBoxButton.OK, MessageBoxImage.Error);
-                    if (_isPasswordVisible)
+                    // Вход через Supabase с фиксированным email
+                    var success = await SupabaseAuthManager.SignInAsync("serp.2001@mail.ru", password);
+
+                    if (success)
                     {
-                        passwordTextBox.Clear();
-                        passwordTextBox.Focus();
+                        // Проверяем права администратора
+                        var isAdmin = await SupabasePriceManager.IsCurrentUserAdmin();
+
+                        if (isAdmin)
+                        {
+                            loginButton.Content = "✅ Успешно!";
+                            await Task.Delay(500); // Небольшая задержка для показа успеха
+                            DialogResult = true;
+                            Close();
+                        }
+                        else
+                        {
+                            ShowLoginError("У вас нет прав администратора");
+                            await SupabaseAuthManager.SignOutAsync();
+                        }
                     }
                     else
                     {
-                        passwordBox.Clear();
-                        passwordBox.Focus();
+                        ShowLoginError("Неверный пароль или email");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Различаем типы ошибок для более точных сообщений
+                    string errorMessage;
+                    if (ex.Message.Contains("Invalid login credentials") ||
+                        ex.Message.Contains("invalid_grant") ||
+                        ex.Message.Contains("400"))
+                    {
+                        errorMessage = "Неверный пароль";
+                    }
+                    else if (ex.Message.Contains("Network") || ex.Message.Contains("timeout"))
+                    {
+                        errorMessage = "Ошибка подключения к серверу";
+                    }
+                    else
+                    {
+                        errorMessage = "Ошибка входа в систему";
+                    }
+
+                    ShowLoginError(errorMessage);
+                }
+                finally
+                {
+                    isLoading = false;
+                    loginButton.Content = originalContent;
+                    loginButton.IsEnabled = true;
+                    cancelButton.IsEnabled = true;
+
+                    // Очищаем поле пароля при неудачной авторизации
+                    if (!DialogResult.HasValue || !DialogResult.Value)
+                    {
+                        if (_isPasswordVisible)
+                        {
+                            passwordTextBox.Clear();
+                            passwordTextBox.Focus();
+                        }
+                        else
+                        {
+                            passwordBox.Clear();
+                            passwordBox.Focus();
+                        }
                     }
                 }
             };
@@ -1322,7 +1794,7 @@ namespace CalculatorApp
             // Обработка Enter
             KeyDown += (s, e) =>
             {
-                if (e.Key == Key.Enter)
+                if (e.Key == Key.Enter && !isLoading)
                 {
                     loginButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 }
@@ -1334,6 +1806,186 @@ namespace CalculatorApp
 
             // Фокус на поле пароля при открытии
             Loaded += (s, e) => passwordBox.Focus();
+        }
+
+        // Методы для создания шаблонов со скругленными углами
+        private ControlTemplate CreateRoundedPasswordBoxTemplate()
+        {
+            var template = new ControlTemplate(typeof(PasswordBox));
+
+            var border = new FrameworkElementFactory(typeof(Border));
+            border.SetBinding(Border.BackgroundProperty, new Binding("Background") { RelativeSource = RelativeSource.TemplatedParent });
+            border.SetBinding(Border.BorderBrushProperty, new Binding("BorderBrush") { RelativeSource = RelativeSource.TemplatedParent });
+            border.SetBinding(Border.BorderThicknessProperty, new Binding("BorderThickness") { RelativeSource = RelativeSource.TemplatedParent });
+            border.SetValue(Border.CornerRadiusProperty, new CornerRadius(12));
+
+            var scrollViewer = new FrameworkElementFactory(typeof(ScrollViewer));
+            scrollViewer.Name = "PART_ContentHost";
+            scrollViewer.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+            scrollViewer.SetBinding(FrameworkElement.MarginProperty, new Binding("Padding") { RelativeSource = RelativeSource.TemplatedParent });
+
+            border.AppendChild(scrollViewer);
+            template.VisualTree = border;
+
+            // Триггеры для фокуса
+            var focusTrigger = new Trigger { Property = UIElement.IsFocusedProperty, Value = true };
+            focusTrigger.Setters.Add(new Setter(Border.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(139, 92, 246))));
+            focusTrigger.Setters.Add(new Setter(Border.BorderThicknessProperty, new Thickness(2, 2, 2, 2)));
+
+            var hoverTrigger = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
+            hoverTrigger.Setters.Add(new Setter(Border.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(139, 92, 246))));
+
+            template.Triggers.Add(focusTrigger);
+            template.Triggers.Add(hoverTrigger);
+
+            return template;
+        }
+
+        private ControlTemplate CreateRoundedTextBoxTemplate()
+        {
+            var template = new ControlTemplate(typeof(TextBox));
+
+            var border = new FrameworkElementFactory(typeof(Border));
+            border.SetBinding(Border.BackgroundProperty, new Binding("Background") { RelativeSource = RelativeSource.TemplatedParent });
+            border.SetBinding(Border.BorderBrushProperty, new Binding("BorderBrush") { RelativeSource = RelativeSource.TemplatedParent });
+            border.SetBinding(Border.BorderThicknessProperty, new Binding("BorderThickness") { RelativeSource = RelativeSource.TemplatedParent });
+            border.SetValue(Border.CornerRadiusProperty, new CornerRadius(12));
+
+            var scrollViewer = new FrameworkElementFactory(typeof(ScrollViewer));
+            scrollViewer.Name = "PART_ContentHost";
+            scrollViewer.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+            scrollViewer.SetBinding(FrameworkElement.MarginProperty, new Binding("Padding") { RelativeSource = RelativeSource.TemplatedParent });
+
+            border.AppendChild(scrollViewer);
+            template.VisualTree = border;
+
+            // Триггеры для фокуса
+            var focusTrigger = new Trigger { Property = UIElement.IsFocusedProperty, Value = true };
+            focusTrigger.Setters.Add(new Setter(Border.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(139, 92, 246))));
+            focusTrigger.Setters.Add(new Setter(Border.BorderThicknessProperty, new Thickness(2, 2, 2, 2)));
+
+            var hoverTrigger = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
+            hoverTrigger.Setters.Add(new Setter(Border.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(139, 92, 246))));
+
+            template.Triggers.Add(focusTrigger);
+            template.Triggers.Add(hoverTrigger);
+
+            return template;
+        }
+
+        private ControlTemplate CreateRoundedButtonTemplate()
+        {
+            var template = new ControlTemplate(typeof(Button));
+
+            var border = new FrameworkElementFactory(typeof(Border));
+            border.SetBinding(Border.BackgroundProperty, new Binding("Background") { RelativeSource = RelativeSource.TemplatedParent });
+            border.SetBinding(Border.BorderBrushProperty, new Binding("BorderBrush") { RelativeSource = RelativeSource.TemplatedParent });
+            border.SetBinding(Border.BorderThicknessProperty, new Binding("BorderThickness") { RelativeSource = RelativeSource.TemplatedParent });
+            border.SetValue(Border.CornerRadiusProperty, new CornerRadius(12));
+            border.SetBinding(Border.PaddingProperty, new Binding("Padding") { RelativeSource = RelativeSource.TemplatedParent });
+
+            var contentPresenter = new FrameworkElementFactory(typeof(ContentPresenter));
+            contentPresenter.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            contentPresenter.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+            contentPresenter.SetBinding(ContentPresenter.ContentProperty, new Binding("Content") { RelativeSource = RelativeSource.TemplatedParent });
+
+            border.AppendChild(contentPresenter);
+            template.VisualTree = border;
+
+            // Триггеры для эффектов
+            var hoverTrigger = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
+            hoverTrigger.Setters.Add(new Setter(UIElement.OpacityProperty, 0.9));
+
+            var pressedTrigger = new Trigger { Property = ButtonBase.IsPressedProperty, Value = true };
+            pressedTrigger.Setters.Add(new Setter(UIElement.OpacityProperty, 0.8));
+
+            template.Triggers.Add(hoverTrigger);
+            template.Triggers.Add(pressedTrigger);
+
+            return template;
+        }
+
+        private Border _errorMessageBorder;
+
+        private void ShowLoginError(string message)
+        {
+            // Получаем ссылку на родительскую сетку
+            var parentGrid = (Grid)((Border)Content).Child;
+
+            // Удаляем старое сообщение об ошибке, если есть
+            if (_errorMessageBorder != null)
+            {
+                parentGrid.Children.Remove(_errorMessageBorder);
+            }
+
+            // Создаем новое сообщение об ошибке (размещаем внизу под кнопками)
+            _errorMessageBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(254, 242, 242)),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(252, 165, 165)),
+                BorderThickness = new Thickness(1, 1, 1, 1),
+                CornerRadius = new CornerRadius(8),
+                Margin = new Thickness(32, 8, 32, 16),
+                Padding = new Thickness(16, 12, 16, 12),
+                MaxWidth = 350 // Ограничиваем ширину для лучшего отображения
+            };
+
+            var errorPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            var errorIcon = new TextBlock
+            {
+                Text = "⚠️",
+                FontSize = 16,
+                Margin = new Thickness(0, 0, 10, 0),
+                VerticalAlignment = VerticalAlignment.Top
+            };
+
+            var errorText = new TextBlock
+            {
+                Text = message,
+                FontSize = 13,
+                FontWeight = FontWeights.Medium,
+                Foreground = new SolidColorBrush(Color.FromRgb(185, 28, 28)),
+                TextWrapping = TextWrapping.Wrap,
+                VerticalAlignment = VerticalAlignment.Center,
+                MaxWidth = 280, // Обеспечиваем видимость всего текста
+                LineHeight = 18
+            };
+
+            errorPanel.Children.Add(errorIcon);
+            errorPanel.Children.Add(errorText);
+            _errorMessageBorder.Child = errorPanel;
+
+            // Размещаем ошибку внизу под кнопками (строка 3)
+            Grid.SetRow(_errorMessageBorder, 3);
+            parentGrid.Children.Add(_errorMessageBorder);
+
+            // Анимация появления
+            _errorMessageBorder.Opacity = 0;
+            var fadeInAnimation = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(200));
+            _errorMessageBorder.BeginAnimation(UIElement.OpacityProperty, fadeInAnimation);
+
+            // Автоматически скрываем через 2 секунды
+            Task.Delay(2000).ContinueWith(_ =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    if (_errorMessageBorder != null && parentGrid.Children.Contains(_errorMessageBorder))
+                    {
+                        var fadeOutAnimation = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(300));
+                        fadeOutAnimation.Completed += (s, e) =>
+                        {
+                            parentGrid.Children.Remove(_errorMessageBorder);
+                            _errorMessageBorder = null;
+                        };
+                        _errorMessageBorder.BeginAnimation(UIElement.OpacityProperty, fadeOutAnimation);
+                    }
+                });
+            });
         }
     }
 }

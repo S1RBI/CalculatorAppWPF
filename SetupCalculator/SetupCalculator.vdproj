@@ -15,25 +15,25 @@
     {
         "Entry"
         {
-        "MsmKey" = "8:_5823FC8C047CE998214CD3BD46CA0856"
-        "OwnerKey" = "8:_95DA3FD9434A46189FF3BDF2B492C9A4"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_7076B8CC923960F54756370A882A5134"
-        "OwnerKey" = "8:_95DA3FD9434A46189FF3BDF2B492C9A4"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_95DA3FD9434A46189FF3BDF2B492C9A4"
+        "MsmKey" = "8:_35828EA803DE4586B2ECEF735B187C6C"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
-        "MsmKey" = "8:_B7F4BCD74734469282F909B925FD408F"
+        "MsmKey" = "8:_5823FC8C047CE998214CD3BD46CA0856"
+        "OwnerKey" = "8:_95C7E8FE15524926B579BFA6785BAE2C"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_7076B8CC923960F54756370A882A5134"
+        "OwnerKey" = "8:_95C7E8FE15524926B579BFA6785BAE2C"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_95C7E8FE15524926B579BFA6785BAE2C"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
@@ -46,7 +46,7 @@
         "Entry"
         {
         "MsmKey" = "8:_UNDEFINED"
-        "OwnerKey" = "8:_95DA3FD9434A46189FF3BDF2B492C9A4"
+        "OwnerKey" = "8:_95C7E8FE15524926B579BFA6785BAE2C"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -73,6 +73,22 @@
         "PrivateKeyFile" = "8:"
         "TimeStampServer" = "8:"
         "InstallerBootstrapper" = "3:2"
+            "BootstrapperCfg:{63ACBE69-63AA-4F98-B2B6-99F9E24495F2}"
+            {
+            "Enabled" = "11:TRUE"
+            "PromptEnabled" = "11:TRUE"
+            "PrerequisitesLocation" = "2:1"
+            "Url" = "8:"
+            "ComponentsUrl" = "8:"
+                "Items"
+                {
+                    "{EDC2488A-8267-493A-A98E-7D9C3B36CDF3}:.NETFramework,Version=v4.7.2"
+                    {
+                    "Name" = "8:Microsoft .NET Framework 4.7.2 (x86 and x64)"
+                    "ProductCode" = "8:.NETFramework,Version=v4.7.2"
+                    }
+                }
+            }
         }
         "Release"
         {
@@ -89,6 +105,14 @@
         "PrivateKeyFile" = "8:"
         "TimeStampServer" = "8:"
         "InstallerBootstrapper" = "3:2"
+            "BootstrapperCfg:{63ACBE69-63AA-4F98-B2B6-99F9E24495F2}"
+            {
+            "Enabled" = "11:TRUE"
+            "PromptEnabled" = "11:TRUE"
+            "PrerequisitesLocation" = "2:1"
+            "Url" = "8:"
+            "ComponentsUrl" = "8:"
+            }
         }
     }
     "Deployable"
@@ -118,6 +142,26 @@
         }
         "File"
         {
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_35828EA803DE4586B2ECEF735B187C6C"
+            {
+            "SourcePath" = "8:C:\\Users\\serp2\\Downloads\\dikom-ico.ico"
+            "TargetName" = "8:dikom-ico.ico"
+            "Tag" = "8:"
+            "Folder" = "8:_9894854CFBA649FF8752E5128187DD3E"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_5823FC8C047CE998214CD3BD46CA0856"
             {
             "AssemblyRegister" = "3:1"
@@ -180,26 +224,6 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_B7F4BCD74734469282F909B925FD408F"
-            {
-            "SourcePath" = "8:C:\\Users\\serp2\\Downloads\\output-onlinepngtools.ico"
-            "TargetName" = "8:icon_dikom.ico"
-            "Tag" = "8:"
-            "Folder" = "8:_9894854CFBA649FF8752E5128187DD3E"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
         }
         "FileType"
         {
@@ -257,7 +281,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Калькулятор ДиКом"
         "ProductCode" = "8:{21D2CBC2-1E5A-4844-8385-0C1FC761B559}"
-        "PackageCode" = "8:{BD2D5979-AD99-43FD-A7E0-865167EDC7E2}"
+        "PackageCode" = "8:{483876A7-668B-49A0-956E-6981C7CE3FE7}"
         "UpgradeCode" = "8:{26BB0B78-E878-4A72-9169-EE62BD392812}"
         "AspNetVersion" = "8:2.0.50727.0"
         "RestartWWWService" = "11:FALSE"
@@ -377,7 +401,7 @@
         }
         "Shortcut"
         {
-            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_02EEC038DE524FA5ABC67034C1C57A0F"
+            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_45D44E71C5134AB9903E2AC538DD5DAD"
             {
             "Name" = "8:Калькулятор ДиКом"
             "Arguments" = "8:"
@@ -385,24 +409,24 @@
             "ShowCmd" = "3:1"
             "IconIndex" = "3:0"
             "Transitive" = "11:FALSE"
-            "Target" = "8:_95DA3FD9434A46189FF3BDF2B492C9A4"
-            "Folder" = "8:_9A23220C657C4E80B395EAFBAC02EC95"
-            "WorkingFolder" = "8:_9894854CFBA649FF8752E5128187DD3E"
-            "Icon" = "8:_B7F4BCD74734469282F909B925FD408F"
-            "Feature" = "8:"
-            }
-            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_34B0A0B8BCEB4D828246C12FD3B16CCE"
-            {
-            "Name" = "8:Калькулятор ДиКом"
-            "Arguments" = "8:"
-            "Description" = "8:"
-            "ShowCmd" = "3:1"
-            "IconIndex" = "3:0"
-            "Transitive" = "11:FALSE"
-            "Target" = "8:_95DA3FD9434A46189FF3BDF2B492C9A4"
+            "Target" = "8:_95C7E8FE15524926B579BFA6785BAE2C"
             "Folder" = "8:_258B96FBA72E432AB4AC381D899D2432"
             "WorkingFolder" = "8:_9894854CFBA649FF8752E5128187DD3E"
-            "Icon" = "8:_B7F4BCD74734469282F909B925FD408F"
+            "Icon" = "8:_35828EA803DE4586B2ECEF735B187C6C"
+            "Feature" = "8:"
+            }
+            "{970C0BB2-C7D0-45D7-ABFA-7EC378858BC0}:_A7FBF8843D6044BEB30305FDE76AB840"
+            {
+            "Name" = "8:Калькулятор ДиКом"
+            "Arguments" = "8:"
+            "Description" = "8:"
+            "ShowCmd" = "3:1"
+            "IconIndex" = "3:0"
+            "Transitive" = "11:FALSE"
+            "Target" = "8:_95C7E8FE15524926B579BFA6785BAE2C"
+            "Folder" = "8:_9A23220C657C4E80B395EAFBAC02EC95"
+            "WorkingFolder" = "8:_9894854CFBA649FF8752E5128187DD3E"
+            "Icon" = "8:_35828EA803DE4586B2ECEF735B187C6C"
             "Feature" = "8:"
             }
         }
@@ -804,7 +828,7 @@
         }
         "ProjectOutput"
         {
-            "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_95DA3FD9434A46189FF3BDF2B492C9A4"
+            "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_95C7E8FE15524926B579BFA6785BAE2C"
             {
             "SourcePath" = "8:..\\CalculatorApp\\obj\\Debug\\CalculatorApp.exe"
             "TargetName" = "8:"
