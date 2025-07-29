@@ -10,6 +10,7 @@
     <Window.Resources>
         <!-- Конвертеры -->
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <local:StringToDoubleConverter x:Key="StringToDoubleConverter"/>
 
         <!-- Современные цвета -->
         <SolidColorBrush x:Key="PrimaryBrush" Color="#00a550"/>
@@ -366,6 +367,52 @@
             <Setter Property="Padding" Value="16"/>
             <Setter Property="Margin" Value="0,12,0,0"/>
         </Style>
+
+        <!-- Эффект тени для карточек -->
+        <DropShadowEffect x:Key="CardShadow" Color="#000000" Opacity="0.06" BlurRadius="12" ShadowDepth="4"/>
+
+        <!-- Стиль для выделяемых цен -->
+        <Style TargetType="TextBox" x:Key="SelectablePriceTextBox">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="0,0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="ToolTip" Value="Кликните для копирования"/>
+            <Setter Property="IsHitTestVisible" Value="True"/>
+            <Setter Property="Focusable" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#F0F9FF"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#3B82F6"/>
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#EBF4FF"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#3B82F6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -398,8 +445,14 @@
 
                 <!-- Навигационные кнопки -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="CalculatorNavButton" Content="📊 Калькулятор" Style="{StaticResource NavButton}"
+                    <Button x:Name="CalculatorNavButton" Content="📊 Покрытия" Style="{StaticResource NavButton}"
                             Tag="Active" Click="NavigateToCalculator"/>
+                    <Button x:Name="HockeyNavButton" Content="🏒 Хоккейные коробки" Style="{StaticResource NavButton}"
+                            Click="NavigateToHockey"/>
+                    <Button x:Name="USPNavButton" Content="🏟️ УСП площадки" Style="{StaticResource NavButton}"
+                            Click="NavigateToUSP"/>
+                    <Button x:Name="USPRoundNavButton" Content="⚽ УСП круглая труба" Style="{StaticResource NavButton}"
+                            Click="NavigateToUSPRound"/>
                     <Button x:Name="AdminNavButton" Content="⚙️ Администрирование" Style="{StaticResource NavButton}"
                             Click="NavigateToAdmin"/>
                 </StackPanel>
@@ -441,7 +494,7 @@
                                         <ColumnDefinition Width="140"/>
                                         <ColumnDefinition Width="100"/>
                                         <ColumnDefinition Width="180"/>
-                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="200"/>
                                         <ColumnDefinition Width="100"/>
                                     </Grid.ColumnDefinitions>
 
@@ -642,6 +695,660 @@
                 </StackPanel>
             </ScrollViewer>
 
+            <!-- Страница хоккейных коробок -->
+            <ScrollViewer x:Name="HockeyPage" VerticalScrollBarVisibility="Auto" Margin="24,16,24,24" Visibility="Collapsed">
+                <StackPanel>
+                    <!-- Заголовок хоккейного калькулятора -->
+                    <Border Style="{StaticResource CardStyle}" Background="#1E40AF" Margin="0,0,0,24">
+                        <StackPanel>
+                            <TextBlock Text="Расчет хоккейных коробок" FontSize="20" FontWeight="Bold"
+                                       Foreground="White" Margin="0,0,0,12"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="➕ Добавить расчет" Style="{StaticResource PrimaryButton}"
+                                        Background="White" Foreground="#1E40AF"
+                                        BorderBrush="White"
+                                        Click="AddHockeyCalculation_Click" Margin="0,0,12,0"/>
+                                <Button Content="🗑️ Очистить все" Style="{StaticResource SecondaryButton}"
+                                        Background="Transparent" Foreground="White" BorderBrush="White"
+                                        Click="ClearAllHockey_Click"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Список расчетов хоккейных коробок -->
+                    <ItemsControl ItemsSource="{Binding HockeyRinkItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource CardStyle}" Margin="0,0,0,24">
+                                    <StackPanel>
+                                        <!-- Панель общих параметров -->
+                                        <Border Background="#F0F4FF" CornerRadius="12" Padding="20,16" Margin="0,0,0,20">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="120"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="120"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="100"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="120"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="120"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Grid.Column="0" Text="Ширина:" FontWeight="SemiBold" 
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <TextBox Grid.Column="1" Text="{Binding Width, UpdateSourceTrigger=PropertyChanged}"
+                                                         Style="{StaticResource ModernTextBox}" Margin="0,0,16,0"/>
+
+                                                <TextBlock Grid.Column="2" Text="Длина:" FontWeight="SemiBold" 
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <TextBox Grid.Column="3" Text="{Binding Length, UpdateSourceTrigger=PropertyChanged}"
+                                                         Style="{StaticResource ModernTextBox}" Margin="0,0,16,0"/>
+
+                                                <TextBlock Grid.Column="4" Text="Радиус:" FontWeight="SemiBold" 
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <ComboBox Grid.Column="5" 
+                                                          SelectedItem="{Binding Radius, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource StringToDoubleConverter}}"
+                                                          ItemsSource="{Binding AvailableRadiuses}"
+                                                          Style="{StaticResource ModernComboBox}" Margin="0,0,16,0"/>
+
+                                                <TextBlock Grid.Column="6" Text="Стекло:" FontWeight="SemiBold" 
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <ComboBox Grid.Column="7" SelectedItem="{Binding GlassThickness, UpdateSourceTrigger=PropertyChanged}"
+                                                          ItemsSource="{Binding AvailableGlassThicknesses}"
+                                                          Style="{StaticResource ModernComboBox}" Margin="0,0,16,0"/>
+
+                                                <TextBlock Grid.Column="8" Text="Сетка:" FontWeight="SemiBold" 
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <ComboBox Grid.Column="9" SelectedItem="{Binding NetHeight, UpdateSourceTrigger=PropertyChanged}"
+                                                          ItemsSource="{Binding AvailableNetHeights}"
+                                                          Style="{StaticResource ModernComboBox}"/>
+
+                                                <!-- Кнопки действий -->
+                                                <StackPanel Grid.Column="11" Orientation="Horizontal">
+                                                    <Button Style="{StaticResource ActionButton}" Tag="{Binding}" 
+                                                            Click="CopyHockeyResult_Click" ToolTip="Копировать все результаты"
+                                                            Margin="0,0,8,0">
+                                                        <Grid Width="16" Height="16">
+                                                            <Rectangle Width="10" Height="12" Stroke="{StaticResource TextSecondaryBrush}"
+                                                                       StrokeThickness="1.5" Fill="Transparent" RadiusX="1" RadiusY="1"
+                                                                       Margin="0,0,4,4"/>
+                                                            <Rectangle Width="10" Height="12" Stroke="{StaticResource TextSecondaryBrush}"
+                                                                       StrokeThickness="1.5" Fill="White" RadiusX="1" RadiusY="1"
+                                                                       Margin="4,4,0,0"/>
+                                                        </Grid>
+                                                    </Button>
+
+                                                    <Button Tag="{Binding}" Click="DeleteHockeyCalculation_Click"
+                                                            ToolTip="Удалить этот расчет" Background="#FEF2F2" BorderBrush="#FECACA">
+                                                        <Button.Style>
+                                                            <Style TargetType="Button" BasedOn="{StaticResource ActionButton}">
+                                                                <Setter Property="Background" Value="#FEF2F2"/>
+                                                                <Setter Property="BorderBrush" Value="#FECACA"/>
+                                                                <Style.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter Property="Background" Value="{StaticResource ErrorBrush}"/>
+                                                                        <Setter Property="BorderBrush" Value="{StaticResource ErrorBrush}"/>
+                                                                    </Trigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Button.Style>
+                                                        <Grid Width="16" Height="16">
+                                                            <Rectangle Width="12" Height="10" Stroke="{StaticResource ErrorBrush}"
+                                                                       StrokeThickness="1.5" Fill="Transparent" RadiusX="1" RadiusY="1"
+                                                                       Margin="2,4,2,2"/>
+                                                            <Rectangle Width="8" Height="2" Fill="{StaticResource ErrorBrush}"
+                                                                       Margin="4,2,4,12"/>
+                                                            <Line X1="6" Y1="6" X2="6" Y2="11" Stroke="{StaticResource ErrorBrush}" StrokeThickness="1"/>
+                                                            <Line X1="8" Y1="6" X2="8" Y2="11" Stroke="{StaticResource ErrorBrush}" StrokeThickness="1"/>
+                                                            <Line X1="10" Y1="6" X2="10" Y2="11" Stroke="{StaticResource ErrorBrush}" StrokeThickness="1"/>
+                                                        </Grid>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Результаты всех расчетов -->
+                                        <ItemsControl ItemsSource="{Binding Calculations}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="White" BorderBrush="{StaticResource BorderBrush}" 
+                                                            BorderThickness="1" CornerRadius="6" Padding="16" Margin="0,0,0,12">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="400"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <!-- Название типа расчета -->
+                                                            <TextBlock Grid.Column="0" Text="{Binding CalculationType}" TextWrapping="Wrap"
+                                                                       FontSize="14" FontWeight="Bold" VerticalAlignment="Center"
+                                                                       Foreground="{StaticResource TextPrimaryBrush}" LineHeight="18"/>
+
+                                                            <!-- Результаты в удобном формате -->
+                                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="3,0,0,20">
+                                                                <StackPanel Orientation="Horizontal" Width="150">
+                                                                    <TextBlock Text="Закупка: " FontSize="12" FontWeight="Medium" 
+                                                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                    <TextBox Text="{Binding PurchaseCost, StringFormat='{}{0:N0} ₽', Mode=OneWay}"
+                                                                             FontSize="12" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}"
+                                                                             Style="{StaticResource SelectablePriceTextBox}"
+                                                                             PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding PurchaseCost}"/>
+                                                                </StackPanel>
+                                                                <StackPanel Orientation="Horizontal" Width="150">
+                                                                    <TextBlock Text="Дилер: " FontSize="12" FontWeight="Medium" 
+                                                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                    <TextBox Text="{Binding DealerPrice, StringFormat='{}{0:N0} ₽', Mode=OneWay}"
+                                                                             FontSize="12" FontWeight="Bold" Foreground="#F59E0B"
+                                                                             Style="{StaticResource SelectablePriceTextBox}"
+                                                                             PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding DealerPrice}"/>
+                                                                </StackPanel>
+                                                                <StackPanel Orientation="Horizontal" Width="150">
+                                                                    <TextBlock Text="Оптовая: " FontSize="12" FontWeight="Medium" 
+                                                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                    <TextBox Text="{Binding WholesalePrice, StringFormat='{}{0:N0} ₽', Mode=OneWay}"
+                                                                             FontSize="12" FontWeight="Bold" Foreground="#8B5CF6"
+                                                                             Style="{StaticResource SelectablePriceTextBox}"
+                                                                             PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding WholesalePrice}"/>
+                                                                </StackPanel>
+                                                                <StackPanel Orientation="Horizontal" Width="150">
+                                                                    <TextBlock Text="Смета: " FontSize="12" FontWeight="Medium" 
+                                                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                    <TextBox Text="{Binding EstimatePrice, StringFormat='{}{0:N0} ₽', Mode=OneWay}"
+                                                                             FontSize="12" FontWeight="Bold" Foreground="#EF4444"
+                                                                             Style="{StaticResource SelectablePriceTextBox}"
+                                                                             PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding EstimatePrice}"/>
+                                                                </StackPanel>
+                                                            </StackPanel>
+
+                                                            <!-- Дополнительная информация в виде выделяемого текста -->
+                                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,20,0,0">
+                                                                <TextBox Text="{Binding SectionsCount, StringFormat='Секций: {0}', Mode=OneWay}" Width="75"
+                                                                         FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                                                         Style="{StaticResource SelectablePriceTextBox}"
+
+                                                                         PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding SectionsCount}"/>
+                                                                <TextBox Text="{Binding NetsCount, StringFormat='Сеток: {0}', Mode=OneWay}" Width="75"
+                                                                         FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                                                         Style="{StaticResource SelectablePriceTextBox}"
+
+                                                                         PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding NetsCount}"/>
+                                                                <TextBox Text="{Binding Mass, StringFormat='Масса: {0:F1} кг', Mode=OneWay}"  Width="100"
+                                                                         FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                                                         Style="{StaticResource SelectablePriceTextBox}"
+
+                                                                         PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding Mass}"/>
+                                                                <TextBox Text="{Binding Volume, StringFormat='Объем: {0:F2} м³', Mode=OneWay}" 
+                                                                         FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                                                         Style="{StaticResource SelectablePriceTextBox}"
+
+                                                                         PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding Volume}"/>
+                                                            </StackPanel>
+
+                                                            <!-- Кнопка копирования отдельного результата -->
+                                                            <Button Grid.Column="2" Style="{StaticResource ActionButton}" 
+                                                                    Tag="{Binding}" Click="CopyHockeyResult_Click"
+                                                                    ToolTip="Копировать этот результат" VerticalAlignment="Center">
+                                                                <Grid Width="16" Height="16">
+                                                                    <Rectangle Width="10" Height="12" Stroke="{StaticResource TextSecondaryBrush}"
+                                                                               StrokeThickness="1.5" Fill="Transparent" RadiusX="1" RadiusY="1"
+                                                                               Margin="0,0,4,4"/>
+                                                                    <Rectangle Width="10" Height="12" Stroke="{StaticResource TextSecondaryBrush}"
+                                                                               StrokeThickness="1.5" Fill="White" RadiusX="1" RadiusY="1"
+                                                                               Margin="4,4,0,0"/>
+                                                                </Grid>
+                                                            </Button>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Страница УСП -->
+            <ScrollViewer x:Name="USPPage" VerticalScrollBarVisibility="Auto" Margin="24,16,24,24" Visibility="Collapsed">
+                <StackPanel>
+                    <!-- Заголовок УСП калькулятора -->
+                    <Border Style="{StaticResource CardStyle}" Background="#16A34A" Margin="0,0,0,24">
+                        <StackPanel>
+                            <TextBlock Text="Расчет УСП из профильной трубы" FontSize="20" FontWeight="Bold"
+                                       Foreground="White" Margin="0,0,0,12"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="➕ Добавить расчет" Style="{StaticResource PrimaryButton}"
+                                        Background="White" Foreground="#16A34A"
+                                        BorderBrush="White"
+                                        Click="AddUSPCalculation_Click" Margin="0,0,12,0"/>
+                                <Button Content="🗑️ Очистить все" Style="{StaticResource SecondaryButton}"
+                                        Background="Transparent" Foreground="White" BorderBrush="White"
+                                        Click="ClearAllUSP_Click"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Список расчетов УСП -->
+                    <ItemsControl ItemsSource="{Binding USPItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource CardStyle}" Margin="0,0,0,24">
+                                    <StackPanel>
+                                        <!-- Панель общих параметров -->
+                                        <Border Background="#F0F9FF" CornerRadius="12" Padding="20,16" Margin="0,0,0,20">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="120"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="120"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="120"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="100"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="120"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Grid.Column="0" Text="Длина:" FontWeight="SemiBold" 
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <TextBox Grid.Column="1" Text="{Binding Length, UpdateSourceTrigger=PropertyChanged}"
+                                                         Style="{StaticResource ModernTextBox}" Margin="0,0,16,0"/>
+
+                                                <TextBlock Grid.Column="2" Text="Ширина:" FontWeight="SemiBold" 
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <TextBox Grid.Column="3" Text="{Binding Width, UpdateSourceTrigger=PropertyChanged}"
+                                                         Style="{StaticResource ModernTextBox}" Margin="0,0,16,0"/>
+
+                                                <TextBlock Grid.Column="4" Text="Периметр:" FontWeight="SemiBold" 
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <TextBox Grid.Column="5" Text="{Binding Perimeter, StringFormat='{}{0:F1} м.п.', Mode=OneWay}"
+                                                         Style="{StaticResource ModernTextBox}" Margin="0,0,16,0" 
+                                                         IsReadOnly="True" Background="#F9FAFB" 
+                                                         ToolTip="Автоматически рассчитывается как 2*(Длина+Ширина)"/>
+
+                                                <TextBlock Grid.Column="6" Text="Высота:" FontWeight="SemiBold" 
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <ComboBox Grid.Column="7" 
+                                                          SelectedItem="{Binding Height, UpdateSourceTrigger=PropertyChanged}"
+                                                          ItemsSource="{Binding AvailableHeights}"
+                                                          Style="{StaticResource ModernComboBox}" Margin="0,0,16,0"/>
+
+                                                <TextBlock Grid.Column="8" Text="Столбы:" FontWeight="SemiBold" 
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <ComboBox Grid.Column="9" SelectedItem="{Binding ColumnType, UpdateSourceTrigger=PropertyChanged}"
+                                                          ItemsSource="{Binding AvailableColumnTypes}"
+                                                          Style="{StaticResource ModernComboBox}"/>
+
+                                                <!-- Кнопки действий -->
+                                                <StackPanel Grid.Column="11" Orientation="Horizontal">
+                                                    <Button Style="{StaticResource ActionButton}" Tag="{Binding}" 
+                                                            Click="CopyUSPResult_Click" ToolTip="Копировать все результаты"
+                                                            Margin="0,0,8,0">
+                                                        <Grid Width="16" Height="16">
+                                                            <Rectangle Width="10" Height="12" Stroke="{StaticResource TextSecondaryBrush}"
+                                                                       StrokeThickness="1.5" Fill="Transparent" RadiusX="1" RadiusY="1"
+                                                                       Margin="0,0,4,4"/>
+                                                            <Rectangle Width="10" Height="12" Stroke="{StaticResource TextSecondaryBrush}"
+                                                                       StrokeThickness="1.5" Fill="White" RadiusX="1" RadiusY="1"
+                                                                       Margin="4,4,0,0"/>
+                                                        </Grid>
+                                                    </Button>
+
+                                                    <Button Tag="{Binding}" Click="DeleteUSPCalculation_Click"
+                                                            ToolTip="Удалить этот расчет" Background="#FEF2F2" BorderBrush="#FECACA">
+                                                        <Button.Style>
+                                                            <Style TargetType="Button" BasedOn="{StaticResource ActionButton}">
+                                                                <Setter Property="Background" Value="#FEF2F2"/>
+                                                                <Setter Property="BorderBrush" Value="#FECACA"/>
+                                                                <Style.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter Property="Background" Value="{StaticResource ErrorBrush}"/>
+                                                                        <Setter Property="BorderBrush" Value="{StaticResource ErrorBrush}"/>
+                                                                    </Trigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Button.Style>
+                                                        <Grid Width="16" Height="16">
+                                                            <Rectangle Width="12" Height="10" Stroke="{StaticResource ErrorBrush}"
+                                                                       StrokeThickness="1.5" Fill="Transparent" RadiusX="1" RadiusY="1"
+                                                                       Margin="2,4,2,2"/>
+                                                            <Rectangle Width="8" Height="2" Fill="{StaticResource ErrorBrush}"
+                                                                       Margin="4,2,4,12"/>
+                                                            <Line X1="6" Y1="6" X2="6" Y2="11" Stroke="{StaticResource ErrorBrush}" StrokeThickness="1"/>
+                                                            <Line X1="8" Y1="6" X2="8" Y2="11" Stroke="{StaticResource ErrorBrush}" StrokeThickness="1"/>
+                                                            <Line X1="10" Y1="6" X2="10" Y2="11" Stroke="{StaticResource ErrorBrush}" StrokeThickness="1"/>
+                                                        </Grid>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Результаты всех расчетов -->
+                                        <ItemsControl ItemsSource="{Binding Calculations}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="White" BorderBrush="{StaticResource BorderBrush}" 
+                                                            BorderThickness="1" CornerRadius="6" Padding="16" Margin="0,0,0,12">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="300"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <!-- Название типа расчета -->
+                                                            <TextBlock Grid.Column="0" Text="{Binding CalculationType}" TextWrapping="Wrap"
+                                                                       FontSize="16" FontWeight="Bold" VerticalAlignment="Center"
+                                                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+
+                                                            <!-- Результаты в удобном формате -->
+                                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,0,0,20">
+                                                                <StackPanel Orientation="Horizontal" Width="200">
+                                                                    <TextBlock Text="Оптовая: " FontSize="12" FontWeight="Medium" 
+                                                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                    <TextBox Text="{Binding WholesalePrice, StringFormat='{}{0:N0} ₽', Mode=OneWay}"
+                                                                             FontSize="12" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}"
+                                                                             Style="{StaticResource SelectablePriceTextBox}"
+                                                                             PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding WholesalePrice}"/>
+                                                                </StackPanel>
+                                                                <StackPanel Orientation="Horizontal" Width="200">
+                                                                    <TextBlock Text="Дилерская: " FontSize="12" FontWeight="Medium" 
+                                                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                    <TextBox Text="{Binding DealerPrice, StringFormat='{}{0:N0} ₽', Mode=OneWay}"
+                                                                             FontSize="12" FontWeight="Bold" Foreground="#F59E0B"
+                                                                             Style="{StaticResource SelectablePriceTextBox}"
+                                                                             PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding DealerPrice}"/>
+                                                                </StackPanel>
+                                                            </StackPanel>
+
+                                                            <!-- Дополнительная информация -->
+                                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="20,20,0,0">
+                                                                <TextBox Text="{Binding AreaWithColumns, StringFormat='Площадь ограждения со столбом: {0:F1} м²', Mode=OneWay}" Width="200"
+                                                                         FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                                                         Style="{StaticResource SelectablePriceTextBox}"
+                                                                         Margin="0,0,12,0" Padding="0"
+                                                                         PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding AreaWithColumns}"/>
+                                                                <TextBox Text="{Binding Mass, StringFormat='Масса: {0:F0} кг', Mode=OneWay}"  Width="110"
+                                                                         FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                                                         Style="{StaticResource SelectablePriceTextBox}"
+                                                                         Margin="0,0,12,0" Padding="0"
+                                                                         PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding Mass}"/>
+                                                                <TextBox Text="{Binding Volume, StringFormat='Объем: {0:F2} м³', Mode=OneWay}" 
+                                                                         FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                                                         Style="{StaticResource SelectablePriceTextBox}"
+                                                                         Padding="0"
+                                                                         PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding Volume}"/>
+                                                            </StackPanel>
+
+                                                            <!-- Кнопка копирования отдельного результата -->
+                                                            <Button Grid.Column="2" Style="{StaticResource ActionButton}" 
+                                                                    Tag="{Binding}" Click="CopyUSPResult_Click"
+                                                                    ToolTip="Копировать этот результат" VerticalAlignment="Center">
+                                                                <Grid Width="16" Height="16">
+                                                                    <Rectangle Width="10" Height="12" Stroke="{StaticResource TextSecondaryBrush}"
+                                                                               StrokeThickness="1.5" Fill="Transparent" RadiusX="1" RadiusY="1"
+                                                                               Margin="0,0,4,4"/>
+                                                                    <Rectangle Width="10" Height="12" Stroke="{StaticResource TextSecondaryBrush}"
+                                                                               StrokeThickness="1.5" Fill="White" RadiusX="1" RadiusY="1"
+                                                                               Margin="4,4,0,0"/>
+                                                                </Grid>
+                                                            </Button>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Страница УСП из круглой трубы -->
+            <ScrollViewer x:Name="USPRoundPage" VerticalScrollBarVisibility="Auto" Margin="24,16,24,24" Visibility="Collapsed">
+                <StackPanel>
+                    <!-- Заголовок УСП из круглой трубы калькулятора -->
+                    <Border Style="{StaticResource CardStyle}" Background="#7C3AED" Margin="0,0,0,24">
+                        <StackPanel>
+                            <TextBlock Text="Расчет УСП из круглой трубы" FontSize="20" FontWeight="Bold"
+                                       Foreground="White" Margin="0,0,0,12"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="➕ Добавить расчет" Style="{StaticResource PrimaryButton}"
+                                        Background="White" Foreground="#7C3AED"
+                                        BorderBrush="White"
+                                        Click="AddUSPRoundCalculation_Click" Margin="0,0,12,0"/>
+                                <Button Content="🗑️ Очистить все" Style="{StaticResource SecondaryButton}"
+                                        Background="Transparent" Foreground="White" BorderBrush="White"
+                                        Click="ClearAllUSPRound_Click"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Список расчетов УСП из круглой трубы -->
+                    <ItemsControl ItemsSource="{Binding USPRoundItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource CardStyle}" Margin="0,0,0,24">
+                                    <StackPanel>
+                                        <!-- Панель общих параметров -->
+                                        <Border Background="#F5F3FF" CornerRadius="12" Padding="20,16" Margin="0,0,0,20">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="120"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="120"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="120"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Grid.Column="0" Text="Длина:" FontWeight="SemiBold" 
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <TextBox Grid.Column="1" Text="{Binding Length, UpdateSourceTrigger=PropertyChanged}"
+                                                         Style="{StaticResource ModernTextBox}" Margin="0,0,16,0"/>
+
+                                                <TextBlock Grid.Column="2" Text="Ширина:" FontWeight="SemiBold" 
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <TextBox Grid.Column="3" Text="{Binding Width, UpdateSourceTrigger=PropertyChanged}"
+                                                         Style="{StaticResource ModernTextBox}" Margin="0,0,16,0"/>
+
+                                                <TextBlock Grid.Column="4" Text="Периметр:" FontWeight="SemiBold" 
+                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <TextBox Grid.Column="5" Text="{Binding Perimeter, StringFormat='{}{0:F1} м.п.', Mode=OneWay}"
+                                                         Style="{StaticResource ModernTextBox}" Margin="0,0,16,0" 
+                                                         IsReadOnly="True" Background="#F9FAFB" 
+                                                         ToolTip="Автоматически рассчитывается как 2*(Длина+Ширина)"/>
+
+                                                <!-- Кнопки действий -->
+                                                <StackPanel Grid.Column="7" Orientation="Horizontal">
+                                                    <Button Style="{StaticResource ActionButton}" Tag="{Binding}" 
+                                                            Click="CopyUSPRoundResult_Click" ToolTip="Копировать все результаты"
+                                                            Margin="0,0,8,0">
+                                                        <Grid Width="16" Height="16">
+                                                            <Rectangle Width="10" Height="12" Stroke="{StaticResource TextSecondaryBrush}"
+                                                                       StrokeThickness="1.5" Fill="Transparent" RadiusX="1" RadiusY="1"
+                                                                       Margin="0,0,4,4"/>
+                                                            <Rectangle Width="10" Height="12" Stroke="{StaticResource TextSecondaryBrush}"
+                                                                       StrokeThickness="1.5" Fill="White" RadiusX="1" RadiusY="1"
+                                                                       Margin="4,4,0,0"/>
+                                                        </Grid>
+                                                    </Button>
+
+                                                    <Button Tag="{Binding}" Click="DeleteUSPRoundCalculation_Click"
+                                                            ToolTip="Удалить этот расчет" Background="#FEF2F2" BorderBrush="#FECACA">
+                                                        <Button.Style>
+                                                            <Style TargetType="Button" BasedOn="{StaticResource ActionButton}">
+                                                                <Setter Property="Background" Value="#FEF2F2"/>
+                                                                <Setter Property="BorderBrush" Value="#FECACA"/>
+                                                                <Style.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter Property="Background" Value="{StaticResource ErrorBrush}"/>
+                                                                        <Setter Property="BorderBrush" Value="{StaticResource ErrorBrush}"/>
+                                                                    </Trigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Button.Style>
+                                                        <Grid Width="16" Height="16">
+                                                            <Rectangle Width="12" Height="10" Stroke="{StaticResource ErrorBrush}"
+                                                                       StrokeThickness="1.5" Fill="Transparent" RadiusX="1" RadiusY="1"
+                                                                       Margin="2,4,2,2"/>
+                                                            <Rectangle Width="8" Height="2" Fill="{StaticResource ErrorBrush}"
+                                                                       Margin="4,2,4,12"/>
+                                                            <Line X1="6" Y1="6" X2="6" Y2="11" Stroke="{StaticResource ErrorBrush}" StrokeThickness="1"/>
+                                                            <Line X1="8" Y1="6" X2="8" Y2="11" Stroke="{StaticResource ErrorBrush}" StrokeThickness="1"/>
+                                                            <Line X1="10" Y1="6" X2="10" Y2="11" Stroke="{StaticResource ErrorBrush}" StrokeThickness="1"/>
+                                                        </Grid>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Результаты всех расчетов -->
+                                        <ItemsControl ItemsSource="{Binding Calculations}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="White" BorderBrush="{StaticResource BorderBrush}" 
+                                                            BorderThickness="1" CornerRadius="6" Padding="16" Margin="0,0,0,12">
+                                                        <Grid>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                            </Grid.RowDefinitions>
+
+                                                            <!-- Название типа расчета -->
+                                                            <TextBlock Grid.Row="0" Text="{Binding CalculationType}" TextWrapping="Wrap"
+                                                                       FontSize="16" FontWeight="Bold" VerticalAlignment="Center"
+                                                                       Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+
+                                                            <!-- Результаты цинк -->
+                                                            <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="2,0,0,0">
+                                                                <TextBlock Text="Горячий цинк:" FontSize="14" FontWeight="Bold"  Width ="140"
+                                                                           Foreground="#6366F1" Margin="0,0,20,0" VerticalAlignment="Center"/>
+
+                                                                <StackPanel Orientation="Horizontal" Width="200">
+                                                                    <TextBlock Text="Оптовая: " FontSize="12" FontWeight="Medium" 
+                                                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                    <TextBox Text="{Binding WholesalePriceZinc, StringFormat='{}{0:N0} ₽', Mode=OneWay}"
+                                                                             FontSize="12" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}"
+                                                                             Style="{StaticResource SelectablePriceTextBox}"
+                                                                             PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding WholesalePriceZinc}"/>
+                                                                </StackPanel>
+
+                                                                <StackPanel Orientation="Horizontal" Width="200">
+                                                                    <TextBlock Text="Дилерская: " FontSize="12" FontWeight="Medium" 
+                                                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                    <TextBox Text="{Binding DealerPriceZinc, StringFormat='{}{0:N0} ₽', Mode=OneWay}"
+                                                                             FontSize="12" FontWeight="Bold" Foreground="#F59E0B"
+                                                                             Style="{StaticResource SelectablePriceTextBox}"
+                                                                             PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding DealerPriceZinc}"/>
+                                                                </StackPanel>
+
+                                                                <StackPanel Orientation="Horizontal" Width="200">
+                                                                    <TextBlock Text="Завод: " FontSize="12" FontWeight="Medium" 
+                                                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                    <TextBox Text="{Binding FactoryCostZinc, StringFormat='{}{0:N0} ₽', Mode=OneWay}"
+                                                                             FontSize="12" FontWeight="Bold" Foreground="#8B5CF6"
+                                                                             Style="{StaticResource SelectablePriceTextBox}"
+                                                                             PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding FactoryCostZinc}"/>
+                                                                </StackPanel>
+                                                            </StackPanel>
+
+                                                            <!-- Результаты цинк + порошок -->
+                                                            <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="2,0,0,20">
+                                                                <TextBlock Text="Цинк + порошок:" FontSize="14" FontWeight="Bold" Width ="140" 
+                                                                           Foreground="#D97706" Margin="0,0,20,0" VerticalAlignment="Center"/>
+
+                                                                <StackPanel Orientation="Horizontal" Width="200">
+                                                                    <TextBlock Text="Оптовая: " FontSize="12" FontWeight="Medium" 
+                                                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                    <TextBox Text="{Binding WholesalePriceZincPowder, StringFormat='{}{0:N0} ₽', Mode=OneWay}"
+                                                                             FontSize="12" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}"
+                                                                             Style="{StaticResource SelectablePriceTextBox}"
+                                                                             PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding WholesalePriceZincPowder}"/>
+                                                                </StackPanel>
+
+                                                                <StackPanel Orientation="Horizontal" Width="200">
+                                                                    <TextBlock Text="Дилерская: " FontSize="12" FontWeight="Medium" 
+                                                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                    <TextBox Text="{Binding DealerPriceZincPowder, StringFormat='{}{0:N0} ₽', Mode=OneWay}"
+                                                                             FontSize="12" FontWeight="Bold" Foreground="#F59E0B"
+                                                                             Style="{StaticResource SelectablePriceTextBox}"
+                                                                             PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding DealerPriceZincPowder}"/>
+                                                                </StackPanel>
+
+                                                                <StackPanel Orientation="Horizontal" Width="200">
+                                                                    <TextBlock Text="Завод: " FontSize="12" FontWeight="Medium" 
+                                                                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                                                                    <TextBox Text="{Binding FactoryCostZincPowder, StringFormat='{}{0:N0} ₽', Mode=OneWay}"
+                                                                             FontSize="12" FontWeight="Bold" Foreground="#8B5CF6"
+                                                                             Style="{StaticResource SelectablePriceTextBox}"
+                                                                             PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding FactoryCostZincPowder}"/>
+                                                                </StackPanel>
+                                                            </StackPanel>
+
+                                                            <!-- Дополнительная информация -->
+                                                            <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,20,0,0">
+                                                                <TextBox Text="{Binding AreaWithColumns, StringFormat='Площадь: {0:F1} м²', Mode=OneWay}" Width="110"
+                                                                         FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                                                         Style="{StaticResource SelectablePriceTextBox}"
+                                                                         Margin="0,0,12,0" Padding="0"
+                                                                         PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding AreaWithColumns}"
+                                                                         Visibility="{Binding ShouldShowArea, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                                <TextBox Text="{Binding Mass, StringFormat='Масса: {0:F0} кг', Mode=OneWay}"  Width="90"
+                                                                         FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                                                         Style="{StaticResource SelectablePriceTextBox}"
+                                                                         Margin="0,0,12,0" Padding="0"
+                                                                         PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding Mass}"/>
+                                                                <TextBox Text="{Binding Volume, StringFormat='Объем: {0:F2} м³', Mode=OneWay}" 
+                                                                         FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"
+                                                                         Style="{StaticResource SelectablePriceTextBox}"
+                                                                         Padding="0"
+                                                                         PreviewMouseLeftButtonDown="CopyPriceToClipboard" Tag="{Binding Volume}"/>
+                                                            </StackPanel>
+
+                                                            <!-- Кнопка копирования отдельного результата -->
+                                                            <Button Grid.Row="0" Style="{StaticResource ActionButton}" 
+                                                                    Tag="{Binding}" Click="CopyUSPRoundResult_Click"
+                                                                    ToolTip="Копировать этот результат" VerticalAlignment="Center"
+                                                                    HorizontalAlignment="Right">
+                                                                <Grid Width="16" Height="16">
+                                                                    <Rectangle Width="10" Height="12" Stroke="{StaticResource TextSecondaryBrush}"
+                                                                               StrokeThickness="1.5" Fill="Transparent" RadiusX="1" RadiusY="1"
+                                                                               Margin="0,0,4,4"/>
+                                                                    <Rectangle Width="10" Height="12" Stroke="{StaticResource TextSecondaryBrush}"
+                                                                               StrokeThickness="1.5" Fill="White" RadiusX="1" RadiusY="1"
+                                                                               Margin="4,4,0,0"/>
+                                                                </Grid>
+                                                            </Button>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ScrollViewer>
+
             <!-- Страница администрирования -->
             <ScrollViewer x:Name="AdminPage" VerticalScrollBarVisibility="Auto" Margin="24,16,24,24" Visibility="Collapsed">
                 <StackPanel>
@@ -650,290 +1357,724 @@
                         <StackPanel>
                             <TextBlock Text="Административная панель" FontSize="20" FontWeight="Bold"
                                        Foreground="White" Margin="0,0,0,12"/>
-                            <StackPanel Orientation="Horizontal">
-                                <Button Content="💾 Сохранить изменения" Style="{StaticResource PrimaryButton}"
-                                        Background="White" Foreground="#8B5CF6"
-                                        BorderBrush="White"
-                                        Click="SavePrices_Click" Margin="0,0,12,0"/>
-                                <Button Content="🔄 Сбросить к умолчанию" Style="{StaticResource SecondaryButton}"
-                                        Background="Transparent" Foreground="White" BorderBrush="White"
-                                        Click="ResetPrices_Click"/>
-                            </StackPanel>
+                            <TextBlock Text="Управление ценами и настройками системы" FontSize="14"
+                                       Foreground="White" Opacity="0.9" Margin="0,0,0,16"/>
                         </StackPanel>
                     </Border>
 
-                    <!-- Управление ценами -->
-                    <Border Style="{StaticResource CardStyle}" Margin="0,0,0,24" Padding="0">
+                    <!-- Навигация по вкладкам -->
+                    <Border Style="{StaticResource CardStyle}" Padding="0" Margin="0,0,0,24">
                         <StackPanel>
-                            <!-- Заголовок секции -->
-                            <Border Background="#F9FAFB" CornerRadius="12,12,0,0" Padding="24,20"
+                            <!-- Вкладки -->
+                            <Border Background="#F9FAFB" CornerRadius="12,12,0,0" Padding="20,16"
                                     BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
-                                <TextBlock Text="📊 Управление ценами" FontSize="18" FontWeight="Bold"
-                                           Foreground="{StaticResource TextPrimaryBrush}"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button x:Name="CoverageTabButton" Content="📊 Покрытия" Style="{StaticResource NavButton}"
+                                            Tag="Active" Click="ShowCoverageTab"/>
+                                    <Button x:Name="HockeyTabButton" Content="🏒 Хоккейные коробки" Style="{StaticResource NavButton}"
+                                            Click="ShowHockeyTab"/>
+                                    <Button x:Name="USPTabButton" Content="🏟️ УСП площадки" Style="{StaticResource NavButton}"
+                                            Click="ShowUSPTab"/>
+                                    <Button x:Name="USPRoundTabButton" Content="⚽ УСП круглая труба" Style="{StaticResource NavButton}"
+                                            Click="ShowUSPRoundTab"/>
+                                    <Button x:Name="PasswordTabButton" Content="🔑 Пароль" Style="{StaticResource NavButton}"
+                                            Click="ShowPasswordTab"/>
+                                </StackPanel>
                             </Border>
 
-                            <!-- Заголовки колонок -->
-                            <Border Background="#FAFBFC" Padding="24,16"
-                                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="250"/>
-                                        <ColumnDefinition Width="150"/>
-                                        <ColumnDefinition Width="180"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
+                            <!-- Содержимое вкладок -->
+                            <StackPanel x:Name="AdminTabContent" Margin="24">
 
-                                    <TextBlock Grid.Column="0" Text="Тип покрытия" FontWeight="SemiBold" FontSize="14"
-                                               Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Grid.Column="1" Text="Толщина" FontWeight="SemiBold" FontSize="14"
-                                               Foreground="{StaticResource TextPrimaryBrush}"/>
-                                    <TextBlock Grid.Column="2" Text="Стоимость" FontWeight="SemiBold" FontSize="14"
-                                               Foreground="{StaticResource TextPrimaryBrush}"/>
-                                </Grid>
-                            </Border>
+                                <!-- Вкладка покрытий -->
+                                <StackPanel x:Name="CoverageTabContent">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                                        <TextBlock Text="📊 Управление ценами на покрытия" FontSize="18" FontWeight="Bold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <Button Content="💾 Сохранить" Style="{StaticResource PrimaryButton}"
+                                                Click="SavePrices_Click" Margin="40,0,12,0" Height="32"/>
+                                        <Button Content="🔄 Сброс" Style="{StaticResource SecondaryButton}"
+                                                Click="ResetPrices_Click" Height="32"/>
+                                    </StackPanel>
 
-                            <!-- Список цен -->
-                            <ItemsControl x:Name="PriceItemsControl">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Style="{StaticResource TableRowStyle}">
+                                    <!-- Заголовки колонок -->
+                                    <Border Background="#FAFBFC" Padding="20,12" CornerRadius="8" Margin="0,0,0,16"
+                                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="250"/>
+                                                <ColumnDefinition Width="150"/>
+                                                <ColumnDefinition Width="180"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock Grid.Column="0" Text="Тип покрытия" FontWeight="SemiBold" FontSize="14"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <TextBlock Grid.Column="1" Text="Толщина" FontWeight="SemiBold" FontSize="14"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <TextBlock Grid.Column="2" Text="Стоимость" FontWeight="SemiBold" FontSize="14"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Список цен -->
+                                    <ItemsControl x:Name="PriceItemsControl">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="White" BorderBrush="{StaticResource BorderBrush}" 
+                                                        BorderThickness="1" CornerRadius="8" Padding="20,16" Margin="0,0,0,8">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="250"/>
+                                                            <ColumnDefinition Width="150"/>
+                                                            <ColumnDefinition Width="180"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <!-- Тип покрытия -->
+                                                        <TextBlock Grid.Column="0" Text="{Binding Type}"
+                                                                   FontSize="14" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                                   VerticalAlignment="Center"/>
+
+                                                        <!-- Толщина -->
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                            <Border Background="#00a550" CornerRadius="4" Padding="8,4" HorizontalAlignment="Left">
+                                                                <TextBlock Text="{Binding Thickness}"
+                                                                           FontSize="12" FontWeight="Medium"
+                                                                           Foreground="White"/>
+                                                            </Border>
+                                                        </StackPanel>
+
+                                                        <!-- Цена -->
+                                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <TextBox Text="{Binding Price, UpdateSourceTrigger=PropertyChanged}"
+                                                                     Style="{StaticResource ModernTextBox}"
+                                                                     Width="120" Margin="0,0,8,0"/>
+                                                            <TextBlock Text="₽/м²"
+                                                                       FontSize="14" FontWeight="Medium"
+                                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                                       VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <!-- Вкладка хоккейных коробок -->
+                                <StackPanel x:Name="HockeyTabContent" Visibility="Collapsed">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                                        <TextBlock Text="🏒 Управление ценами хоккейных коробок" FontSize="18" FontWeight="Bold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <Button Content="💾 Сохранить" Style="{StaticResource PrimaryButton}"
+                                                Click="SaveHockeyPrices_Click" Margin="40,0,12,0" Height="32"/>
+                                        <Button Content="🔄 Сброс" Style="{StaticResource SecondaryButton}"
+                                                Click="ResetHockeyPrices_Click" Height="32"/>
+                                    </StackPanel>
+
+                                    <!-- Коэффициенты -->
+                                    <Border Background="#F0F4FF" Padding="20,16" CornerRadius="8" Margin="0,0,0,20"
+                                            BorderBrush="#DBEAFE" BorderThickness="1">
+                                        <StackPanel>
+                                            <TextBlock Text="Коэффициенты для расчета цен" FontSize="16" FontWeight="Bold"
+                                                       Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,16"/>
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="250"/>
-                                                    <ColumnDefinition Width="150"/>
-                                                    <ColumnDefinition Width="180"/>
+                                                    <ColumnDefinition Width="200"/>
+                                                    <ColumnDefinition Width="200"/>
+                                                    <ColumnDefinition Width="200"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
 
-                                                <!-- Тип покрытия -->
-                                                <TextBlock Grid.Column="0" Text="{Binding Type}"
-                                                           FontSize="14" FontWeight="Medium"
-                                                           Foreground="{StaticResource TextPrimaryBrush}"
-                                                           VerticalAlignment="Center"/>
-
-                                                <!-- Толщина -->
-                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                    <Border Background="#E5E7EB" CornerRadius="4" Padding="8,4" HorizontalAlignment="Left">
-                                                        <TextBlock Text="{Binding Thickness}"
-                                                                   FontSize="12" FontWeight="Medium"
-                                                                   Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                    </Border>
+                                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                                    <TextBlock Text="Коэффициент дилера" FontSize="14" FontWeight="Medium"
+                                                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                                                    <TextBox x:Name="DealerCoeffTextBox" Text="1.25"
+                                                             Style="{StaticResource ModernTextBox}"/>
                                                 </StackPanel>
 
-                                                <!-- Цена -->
-                                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <TextBox Text="{Binding Price, UpdateSourceTrigger=PropertyChanged}"
-                                                             Style="{StaticResource ModernTextBox}"
-                                                             Width="120" Margin="0,0,8,0"/>
-                                                    <TextBlock Text="₽/м²"
-                                                               FontSize="14" FontWeight="Medium"
-                                                               Foreground="{StaticResource TextSecondaryBrush}"
-                                                               VerticalAlignment="Center"/>
+                                                <StackPanel Grid.Column="1" Margin="0,0,16,0">
+                                                    <TextBlock Text="Коэффициент оптовый" FontSize="14" FontWeight="Medium"
+                                                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                                                    <TextBox x:Name="WholesaleCoeffTextBox" Text="1.20"
+                                                             Style="{StaticResource ModernTextBox}"/>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Column="2" Margin="0,0,16,0">
+                                                    <TextBlock Text="Коэффициент сметный" FontSize="14" FontWeight="Medium"
+                                                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                                                    <TextBox x:Name="EstimateCoeffTextBox" Text="1.80"
+                                                             Style="{StaticResource ModernTextBox}"/>
                                                 </StackPanel>
                                             </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Border>
+                                        </StackPanel>
+                                    </Border>
 
-                    <!-- Смена пароля -->
-                    <Border Style="{StaticResource CardStyle}">
-                        <StackPanel>
-                            <TextBlock Text="🔑 Смена пароля базы данных Supabase" FontSize="18" FontWeight="Bold"
-                                       Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,20"/>
+                                    <!-- Заголовки колонок цен -->
+                                    <Border Background="#FAFBFC" Padding="20,12" CornerRadius="8" Margin="0,0,0,16"
+                                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="300"/>
+                                                <ColumnDefinition Width="150"/>
+                                                <ColumnDefinition Width="180"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
 
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="270"/>
-                                    <ColumnDefinition Width="270"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Категория" FontWeight="SemiBold" FontSize="14"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <TextBlock Grid.Column="1" Text="Подкategория" FontWeight="SemiBold" FontSize="14"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <TextBlock Grid.Column="2" Text="Стоимость" FontWeight="SemiBold" FontSize="14"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        </Grid>
+                                    </Border>
 
-                                <!-- Текущий пароль -->
-                                <StackPanel Grid.Column="0" Grid.Row="0" Margin="0,0,16,0">
-                                    <TextBlock Text="Текущий пароль" FontSize="14" FontWeight="Medium"
+                                    <!-- Список цен хоккейных коробок -->
+                                    <ItemsControl x:Name="HockeyPriceItemsControl">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="White" BorderBrush="{StaticResource BorderBrush}" 
+                                                        BorderThickness="1" CornerRadius="8" Padding="20,16" Margin="0,0,0,8">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="300"/>
+                                                            <ColumnDefinition Width="150"/>
+                                                            <ColumnDefinition Width="180"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <!-- Категория -->
+                                                        <TextBlock Grid.Column="0" Text="{Binding Category}"
+                                                                   FontSize="14" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                                   VerticalAlignment="Center"/>
+
+                                                        <!-- Подкategория -->
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                            <Border Background="#1E40AF" CornerRadius="4" Padding="8,4" HorizontalAlignment="Left">
+                                                                <TextBlock Text="{Binding Subcategory}"
+                                                                           FontSize="12" FontWeight="Medium"
+                                                                           Foreground="White"/>
+                                                            </Border>
+                                                        </StackPanel>
+
+                                                        <!-- Цена -->
+                                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <TextBox Text="{Binding Price, UpdateSourceTrigger=PropertyChanged}"
+                                                                     Style="{StaticResource ModernTextBox}"
+                                                                     Width="120" Margin="0,0,8,0"/>
+                                                            <TextBlock Text="₽"
+                                                                       FontSize="14" FontWeight="Medium"
+                                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                                       VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <!-- Вкладка УСП -->
+                                <StackPanel x:Name="USPTabContent" Visibility="Collapsed">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                                        <TextBlock Text="🏟️ Управление ценами УСП" FontSize="18" FontWeight="Bold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <Button Content="💾 Сохранить" Style="{StaticResource PrimaryButton}"
+                                                Click="SaveUSPPrices_Click" Margin="40,0,12,0" Height="32"/>
+                                        <Button Content="🔄 Сброс" Style="{StaticResource SecondaryButton}"
+                                                Click="ResetUSPPrices_Click" Height="32"/>
+                                    </StackPanel>
+
+                                    <!-- Коэффициенты УСП -->
+                                    <Border Background="#F0F9FF" Padding="20,16" CornerRadius="8" Margin="0,0,0,20"
+                                            BorderBrush="#C7D2FE" BorderThickness="1">
+                                        <StackPanel>
+                                            <TextBlock Text="Коэффициенты для расчета цен УСП" FontSize="16" FontWeight="Bold"
+                                                       Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,16"/>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="250"/>
+                                                    <ColumnDefinition Width="250"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                                    <TextBlock Text="Коэффициент оптовый" FontSize="14" FontWeight="Medium"
+                                                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                                                    <TextBox x:Name="USPWholesaleCoeffTextBox" Text="1.8"
+                                                             Style="{StaticResource ModernTextBox}"/>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Column="1" Margin="0,0,16,0">
+                                                    <TextBlock Text="Коэффициент дилерский" FontSize="14" FontWeight="Medium"
+                                                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                                                    <TextBox x:Name="USPDealerCoeffTextBox" Text="1.3"
+                                                             Style="{StaticResource ModernTextBox}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Заголовки колонок цен УСП -->
+                                    <Border Background="#FAFBFC" Padding="20,12" CornerRadius="8" Margin="0,0,0,16"
+                                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="350"/>
+                                                <ColumnDefinition Width="150"/>
+                                                <ColumnDefinition Width="180"/>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock Grid.Column="0" Text="Категория" FontWeight="SemiBold" FontSize="14"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <TextBlock Grid.Column="1" Text="Подкategория" FontWeight="SemiBold" FontSize="14"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <TextBlock Grid.Column="2" Text="Стоимость" FontWeight="SemiBold" FontSize="14"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <TextBlock Grid.Column="3" Text="Единица" FontWeight="SemiBold" FontSize="14"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Список цен УСП -->
+                                    <ItemsControl x:Name="USPPriceItemsControl">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="White" BorderBrush="{StaticResource BorderBrush}" 
+                                                        BorderThickness="1" CornerRadius="8" Padding="20,16" Margin="0,0,0,8">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="350"/>
+                                                            <ColumnDefinition Width="150"/>
+                                                            <ColumnDefinition Width="180"/>
+                                                            <ColumnDefinition Width="80"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <!-- Категория -->
+                                                        <TextBlock Grid.Column="0" Text="{Binding Category}"
+                                                                   FontSize="13" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                                   VerticalAlignment="Center" TextWrapping="Wrap"/>
+
+                                                        <!-- Подкategория -->
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                            <Border Background="#16A34A" CornerRadius="4" Padding="8,4" HorizontalAlignment="Left">
+                                                                <TextBlock Text="{Binding Subcategory}"
+                                                                           FontSize="12" FontWeight="Medium"
+                                                                           Foreground="White"/>
+                                                            </Border>
+                                                        </StackPanel>
+
+                                                        <!-- Цена -->
+                                                        <TextBox Grid.Column="2" Text="{Binding Price, StringFormat=F4, UpdateSourceTrigger=PropertyChanged}"
+                                                                 Style="{StaticResource ModernTextBox}"
+                                                                 Width="150" VerticalAlignment="Center"/>
+
+                                                        <!-- Единица измерения -->
+                                                        <TextBlock Grid.Column="3" Text="{Binding Unit}"
+                                                                   FontSize="12" FontWeight="Medium"
+                                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <!-- Вкладка УСП из круглой трубы -->
+                                <StackPanel x:Name="USPRoundTabContent" Visibility="Collapsed">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                                        <TextBlock Text="⚽ Управление ценами УСП из круглой трубы" FontSize="18" FontWeight="Bold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        <Button Content="💾 Сохранить" Style="{StaticResource PrimaryButton}"
+                                                Click="SaveUSPRoundPrices_Click" Margin="40,0,12,0" Height="32"/>
+                                        <Button Content="🔄 Сброс" Style="{StaticResource SecondaryButton}"
+                                                Click="ResetUSPRoundPrices_Click" Height="32"/>
+                                    </StackPanel>
+
+                                    <!-- Коэффициенты УСП из круглой трубы -->
+                                    <Border Background="#F5F3FF" Padding="20,16" CornerRadius="8" Margin="0,0,0,20"
+                                            BorderBrush="#DDD6FE" BorderThickness="1">
+                                        <StackPanel>
+                                            <TextBlock Text="Коэффициенты для расчета цен УСП из круглой трубы" FontSize="16" FontWeight="Bold"
+                                                       Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,16"/>
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="250"/>
+                                                    <ColumnDefinition Width="250"/>
+                                                    <ColumnDefinition Width="250"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,16,0">
+                                                    <TextBlock Text="Коэффициент оптовый" FontSize="14" FontWeight="Medium"
+                                                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                                                    <TextBox x:Name="USPRoundWholesaleCoeffTextBox" Text="1.202"
+                                                             Style="{StaticResource ModernTextBox}"/>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,16,0">
+                                                    <TextBlock Text="Коэффициент дилерский" FontSize="14" FontWeight="Medium"
+                                                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                                                    <TextBox x:Name="USPRoundDealerCoeffTextBox" Text="1.149"
+                                                             Style="{StaticResource ModernTextBox}"/>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,16,0">
+                                                    <TextBlock Text="Цена за порошок на 1м²" FontSize="14" FontWeight="Medium"
+                                                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                                                    <TextBox x:Name="USPRoundPowderPriceTextBox" Text="150"
+                                                             Style="{StaticResource ModernTextBox}"/>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,16,16,0">
+                                                    <TextBlock Text="Коэф. увеличения на покраску" FontSize="14" FontWeight="Medium"
+                                                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                                                    <TextBox x:Name="USPRoundPaintingCoeffTextBox" Text="1.3"
+                                                             Style="{StaticResource ModernTextBox}"/>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Row="1" Grid.Column="1" Margin="0,16,16,0">
+                                                    <TextBlock Text="Коэф. увеличения на покраску (2-е знач.)" FontSize="14" FontWeight="Medium"
+                                                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
+                                                    <TextBox x:Name="USPRoundPaintingSecondCoeffTextBox" Text="2.3"
+                                                             Style="{StaticResource ModernTextBox}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Фиксированные значения -->
+                                    <Border Background="#EEF2FF" Padding="20,16" CornerRadius="8" Margin="0,0,0,20"
+                                            BorderBrush="#DDD6FE" BorderThickness="1">
+                                        <StackPanel>
+                                            <TextBlock Text="Фиксированные значения для дополнительных элементов" FontSize="16" FontWeight="Bold"
+                                                       Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,16"/>
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="300"/>
+                                                    <ColumnDefinition Width="150"/>
+                                                    <ColumnDefinition Width="150"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Заголовки -->
+                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Элемент" FontWeight="SemiBold" FontSize="14"
+                                                           Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+                                                <TextBlock Grid.Row="0" Grid.Column="1" Text="Масса, кг" FontWeight="SemiBold" FontSize="14"
+                                                           Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+                                                <TextBlock Grid.Row="0" Grid.Column="2" Text="Объем, м³" FontWeight="SemiBold" FontSize="14"
+                                                           Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+
+                                                <!-- Баскетбольная стойка -->
+                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Дополнительная баскетбольная стойка" 
+                                                           FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,16,12"/>
+                                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="BasketballStandMassTextBox" Text="130"
+                                                         Style="{StaticResource ModernTextBox}" Width="100" Margin="0,0,16,12"/>
+                                                <TextBox Grid.Row="1" Grid.Column="2" x:Name="BasketballStandVolumeTextBox" Text="1.5"
+                                                         Style="{StaticResource ModernTextBox}" Width="100" Margin="0,0,16,12"/>
+
+                                                <!-- Калитка 3м -->
+                                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Дополнительная калитка для высоты УСП 3м" 
+                                                           FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,16,12"/>
+                                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="Gate3mMassTextBox" Text="81"
+                                                         Style="{StaticResource ModernTextBox}" Width="100" Margin="0,0,16,12"/>
+                                                <TextBox Grid.Row="2" Grid.Column="2" x:Name="Gate3mVolumeTextBox" Text="0.2"
+                                                         Style="{StaticResource ModernTextBox}" Width="100" Margin="0,0,16,12"/>
+
+                                                <!-- Калитка 4.1м -->
+                                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Дополнительная калитка для высоты УСП 4,1м" 
+                                                           FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,16,0"/>
+                                                <TextBox Grid.Row="3" Grid.Column="1" x:Name="Gate41mMassTextBox" Text="95"
+                                                         Style="{StaticResource ModernTextBox}" Width="100" Margin="0,0,16,0"/>
+                                                <TextBox Grid.Row="3" Grid.Column="2" x:Name="Gate41mVolumeTextBox" Text="0.25"
+                                                         Style="{StaticResource ModernTextBox}" Width="100" Margin="0,0,16,0"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Заголовки колонок цен УСП из круглой трубы -->
+                                    <Border Background="#FAFBFC" Padding="20,12" CornerRadius="8" Margin="0,0,0,16"
+                                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="400"/>
+                                                <ColumnDefinition Width="150"/>
+                                                <ColumnDefinition Width="180"/>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock Grid.Column="0" Text="Категория" FontWeight="SemiBold" FontSize="14"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <TextBlock Grid.Column="1" Text="Подкategория" FontWeight="SemiBold" FontSize="14"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <TextBlock Grid.Column="2" Text="Стоимость" FontWeight="SemiBold" FontSize="14"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                            <TextBlock Grid.Column="3" Text="Единица" FontWeight="SemiBold" FontSize="14"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Список цен УСП из круглой трубы -->
+                                    <ItemsControl x:Name="USPRoundPriceItemsControl">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="White" BorderBrush="{StaticResource BorderBrush}" 
+                                                        BorderThickness="1" CornerRadius="8" Padding="20,16" Margin="0,0,0,8">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="400"/>
+                                                            <ColumnDefinition Width="150"/>
+                                                            <ColumnDefinition Width="180"/>
+                                                            <ColumnDefinition Width="80"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <!-- Категория -->
+                                                        <TextBlock Grid.Column="0" Text="{Binding Category}"
+                                                                   FontSize="13" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                                   VerticalAlignment="Center" TextWrapping="Wrap"/>
+
+                                                        <!-- Подкategория -->
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                            <Border Background="#7C3AED" CornerRadius="4" Padding="8,4" HorizontalAlignment="Left">
+                                                                <TextBlock Text="{Binding Subcategory}"
+                                                                           FontSize="12" FontWeight="Medium"
+                                                                           Foreground="White"/>
+                                                            </Border>
+                                                        </StackPanel>
+
+                                                        <!-- Цена -->
+                                                        <TextBox Grid.Column="2" Text="{Binding Price, StringFormat=F4, UpdateSourceTrigger=PropertyChanged}"
+                                                                 Style="{StaticResource ModernTextBox}"
+                                                                 Width="150" VerticalAlignment="Center"/>
+
+                                                        <!-- Единица измерения -->
+                                                        <TextBlock Grid.Column="3" Text="{Binding Unit}"
+                                                                   FontSize="12" FontWeight="Medium"
+                                                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <!-- Вкладка смены пароля -->
+                                <StackPanel x:Name="PasswordTabContent" Visibility="Collapsed">
+                                    <TextBlock Text="🔑 Смена пароля базы данных Supabase" FontSize="18" FontWeight="Bold"
+                                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,20"/>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="270"/>
+                                            <ColumnDefinition Width="270"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Текущий пароль -->
+                                        <StackPanel Grid.Column="0" Grid.Row="0" Margin="0,0,16,0">
+                                            <TextBlock Text="Текущий пароль" FontSize="14" FontWeight="Medium"
                                                Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
-                                    <Grid Style="{StaticResource PasswordContainerStyle}">
-                                        <PasswordBox x:Name="CurrentPasswordBox"
+                                            <Grid Style="{StaticResource PasswordContainerStyle}">
+                                                <PasswordBox x:Name="CurrentPasswordBox"
                                                      Style="{StaticResource ModernPasswordBox}"
                                                      Padding="12,0,45,0"/>
-                                        <TextBox x:Name="CurrentPasswordTextBox"
+                                                <TextBox x:Name="CurrentPasswordTextBox"
                                                  Style="{StaticResource ModernTextBox}"
                                                  Padding="12,0,45,0"
                                                  Visibility="Collapsed"/>
-                                        <Button x:Name="CurrentPasswordToggle"
+                                                <Button x:Name="CurrentPasswordToggle"
                                                 Style="{StaticResource PasswordToggleButton}"
                                                 HorizontalAlignment="Right"
                                                 VerticalAlignment="Center"
                                                 Margin="0,0,5,0"
                                                 Click="ToggleCurrentPasswordVisibility"
                                                 ToolTip="Показать/скрыть пароль">
-                                            <!-- Иконка глаза -->
-                                            <Grid Width="16" Height="16">
-                                                <!-- Закрытый глаз (по умолчанию) -->
-                                                <Canvas x:Name="CurrentEyeClosedIcon" Visibility="Visible">
-                                                    <!-- Глаз -->
-                                                    <Path Fill="{StaticResource TextSecondaryBrush}"
+                                                    <!-- Иконка глаза -->
+                                                    <Grid Width="16" Height="16">
+                                                        <!-- Закрытый глаз (по умолчанию) -->
+                                                        <Canvas x:Name="CurrentEyeClosedIcon" Visibility="Visible">
+                                                            <!-- Глаз -->
+                                                            <Path Fill="{StaticResource TextSecondaryBrush}"
                                                           Data="M1,8 C1,8 3.5,3 8,3 C12.5,3 15,8 15,8 C15,8 12.5,13 8,13 C3.5,13 1,8 1,8 Z"/>
-                                                    <!-- Зрачок -->
-                                                    <Ellipse Canvas.Left="6" Canvas.Top="6" Width="4" Height="4"
+                                                            <!-- Зрачок -->
+                                                            <Ellipse Canvas.Left="6" Canvas.Top="6" Width="4" Height="4"
                                                              Fill="{StaticResource TextSecondaryBrush}"/>
-                                                    <!-- Линия перечеркивания -->
-                                                    <Line X1="2" Y1="2" X2="14" Y2="14"
+                                                            <!-- Линия перечеркивания -->
+                                                            <Line X1="2" Y1="2" X2="14" Y2="14"
                                                           Stroke="{StaticResource TextSecondaryBrush}"
                                                           StrokeThickness="1.5"/>
-                                                </Canvas>
-                                                <!-- Открытый глаз -->
-                                                <Canvas x:Name="CurrentEyeOpenIcon" Visibility="Collapsed">
-                                                    <!-- Глаз -->
-                                                    <Path Fill="{StaticResource TextSecondaryBrush}"
+                                                        </Canvas>
+                                                        <!-- Открытый глаз -->
+                                                        <Canvas x:Name="CurrentEyeOpenIcon" Visibility="Collapsed">
+                                                            <!-- Глаз -->
+                                                            <Path Fill="{StaticResource TextSecondaryBrush}"
                                                           Data="M1,8 C1,8 3.5,3 8,3 C12.5,3 15,8 15,8 C15,8 12.5,13 8,13 C3.5,13 1,8 1,8 Z"/>
-                                                    <!-- Белок глаза -->
-                                                    <Ellipse Canvas.Left="5" Canvas.Top="5" Width="6" Height="6"
+                                                            <!-- Белок глаза -->
+                                                            <Ellipse Canvas.Left="5" Canvas.Top="5" Width="6" Height="6"
                                                              Fill="White"/>
-                                                    <!-- Зрачок -->
-                                                    <Ellipse Canvas.Left="6.5" Canvas.Top="6.5" Width="3" Height="3"
+                                                            <!-- Зрачок -->
+                                                            <Ellipse Canvas.Left="6.5" Canvas.Top="6.5" Width="3" Height="3"
                                                              Fill="{StaticResource TextSecondaryBrush}"/>
-                                                </Canvas>
+                                                        </Canvas>
+                                                    </Grid>
+                                                </Button>
                                             </Grid>
-                                        </Button>
-                                    </Grid>
-                                </StackPanel>
+                                        </StackPanel>
 
-                                <!-- Новый пароль -->
-                                <StackPanel Grid.Column="1" Grid.Row="0" Margin="0,0,16,0">
-                                    <TextBlock Text="Новый пароль" FontSize="14" FontWeight="Medium"
+                                        <!-- Новый пароль -->
+                                        <StackPanel Grid.Column="1" Grid.Row="0" Margin="0,0,16,0">
+                                            <TextBlock Text="Новый пароль" FontSize="14" FontWeight="Medium"
                                                Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
-                                    <Grid Style="{StaticResource PasswordContainerStyle}">
-                                        <PasswordBox x:Name="NewPasswordBox"
+                                            <Grid Style="{StaticResource PasswordContainerStyle}">
+                                                <PasswordBox x:Name="NewPasswordBox"
                                                      Style="{StaticResource ModernPasswordBox}"
                                                      Padding="12,0,45,0"/>
-                                        <TextBox x:Name="NewPasswordTextBox"
+                                                <TextBox x:Name="NewPasswordTextBox"
                                                  Style="{StaticResource ModernTextBox}"
                                                  Padding="12,0,45,0"
                                                  Visibility="Collapsed"/>
-                                        <Button x:Name="NewPasswordToggle"
+                                                <Button x:Name="NewPasswordToggle"
                                                 Style="{StaticResource PasswordToggleButton}"
                                                 HorizontalAlignment="Right"
                                                 VerticalAlignment="Center"
                                                 Margin="0,0,5,0"
                                                 Click="ToggleNewPasswordVisibility"
                                                 ToolTip="Показать/скрыть пароль">
-                                            <!-- Иконка глаза -->
-                                            <Grid Width="16" Height="16">
-                                                <!-- Закрытый глаз (по умолчанию) -->
-                                                <Canvas x:Name="NewEyeClosedIcon" Visibility="Visible">
-                                                    <!-- Глаз -->
-                                                    <Path Fill="{StaticResource TextSecondaryBrush}"
+                                                    <!-- Иконка глаза -->
+                                                    <Grid Width="16" Height="16">
+                                                        <!-- Закрытый глаз (по умолчанию) -->
+                                                        <Canvas x:Name="NewEyeClosedIcon" Visibility="Visible">
+                                                            <!-- Глаз -->
+                                                            <Path Fill="{StaticResource TextSecondaryBrush}"
                                                           Data="M1,8 C1,8 3.5,3 8,3 C12.5,3 15,8 15,8 C15,8 12.5,13 8,13 C3.5,13 1,8 1,8 Z"/>
-                                                    <!-- Зрачок -->
-                                                    <Ellipse Canvas.Left="6" Canvas.Top="6" Width="4" Height="4"
+                                                            <!-- Зрачок -->
+                                                            <Ellipse Canvas.Left="6" Canvas.Top="6" Width="4" Height="4"
                                                              Fill="{StaticResource TextSecondaryBrush}"/>
-                                                    <!-- Линия перечеркивания -->
-                                                    <Line X1="2" Y1="2" X2="14" Y2="14"
+                                                            <!-- Линия перечеркивания -->
+                                                            <Line X1="2" Y1="2" X2="14" Y2="14"
                                                           Stroke="{StaticResource TextSecondaryBrush}"
                                                           StrokeThickness="1.5"/>
-                                                </Canvas>
-                                                <!-- Открытый глаз -->
-                                                <Canvas x:Name="NewEyeOpenIcon" Visibility="Collapsed">
-                                                    <!-- Глаз -->
-                                                    <Path Fill="{StaticResource TextSecondaryBrush}"
+                                                        </Canvas>
+                                                        <!-- Открытый глаз -->
+                                                        <Canvas x:Name="NewEyeOpenIcon" Visibility="Collapsed">
+                                                            <!-- Глаз -->
+                                                            <Path Fill="{StaticResource TextSecondaryBrush}"
                                                           Data="M1,8 C1,8 3.5,3 8,3 C12.5,3 15,8 15,8 C15,8 12.5,13 8,13 C3.5,13 1,8 1,8 Z"/>
-                                                    <!-- Белок глаза -->
-                                                    <Ellipse Canvas.Left="5" Canvas.Top="5" Width="6" Height="6"
+                                                            <!-- Белок глаза -->
+                                                            <Ellipse Canvas.Left="5" Canvas.Top="5" Width="6" Height="6"
                                                              Fill="White"/>
-                                                    <!-- Зрачок -->
-                                                    <Ellipse Canvas.Left="6.5" Canvas.Top="6.5" Width="3" Height="3"
+                                                            <!-- Зрачок -->
+                                                            <Ellipse Canvas.Left="6.5" Canvas.Top="6.5" Width="3" Height="3"
                                                              Fill="{StaticResource TextSecondaryBrush}"/>
-                                                </Canvas>
+                                                        </Canvas>
+                                                    </Grid>
+                                                </Button>
                                             </Grid>
-                                        </Button>
-                                    </Grid>
-                                </StackPanel>
+                                        </StackPanel>
 
-                                <!-- Подтверждение нового пароля -->
-                                <StackPanel Grid.Column="0" Grid.Row="1" Margin="0,0,16,0">
-                                    <TextBlock Text="Подтвердите новый пароль" FontSize="14" FontWeight="Medium"
+                                        <!-- Подтверждение нового пароля -->
+                                        <StackPanel Grid.Column="0" Grid.Row="1" Margin="0,0,16,0">
+                                            <TextBlock Text="Подтвердите новый пароль" FontSize="14" FontWeight="Medium"
                                                Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
-                                    <Grid Style="{StaticResource PasswordContainerStyle}">
-                                        <PasswordBox x:Name="ConfirmPasswordBox"
+                                            <Grid Style="{StaticResource PasswordContainerStyle}">
+                                                <PasswordBox x:Name="ConfirmPasswordBox"
                                                      Style="{StaticResource ModernPasswordBox}"
                                                      Padding="12,0,45,0"/>
-                                        <TextBox x:Name="ConfirmPasswordTextBox"
+                                                <TextBox x:Name="ConfirmPasswordTextBox"
                                                  Style="{StaticResource ModernTextBox}"
                                                  Padding="12,0,45,0"
                                                  Visibility="Collapsed"/>
-                                        <Button x:Name="ConfirmPasswordToggle"
+                                                <Button x:Name="ConfirmPasswordToggle"
                                                 Style="{StaticResource PasswordToggleButton}"
                                                 HorizontalAlignment="Right"
                                                 VerticalAlignment="Center"
                                                 Margin="0,0,5,0"
                                                 Click="ToggleConfirmPasswordVisibility"
                                                 ToolTip="Показать/скрыть пароль">
-                                            <!-- Иконка глаза -->
-                                            <Grid Width="16" Height="16">
-                                                <!-- Закрытый глаз (по умолчанию) -->
-                                                <Canvas x:Name="ConfirmEyeClosedIcon" Visibility="Visible">
-                                                    <!-- Глаз -->
-                                                    <Path Fill="{StaticResource TextSecondaryBrush}"
+                                                    <!-- Иконка глаза -->
+                                                    <Grid Width="16" Height="16">
+                                                        <!-- Закрытый глаз (по умолчанию) -->
+                                                        <Canvas x:Name="ConfirmEyeClosedIcon" Visibility="Visible">
+                                                            <!-- Глаз -->
+                                                            <Path Fill="{StaticResource TextSecondaryBrush}"
                                                           Data="M1,8 C1,8 3.5,3 8,3 C12.5,3 15,8 15,8 C15,8 12.5,13 8,13 C3.5,13 1,8 1,8 Z"/>
-                                                    <!-- Зрачок -->
-                                                    <Ellipse Canvas.Left="6" Canvas.Top="6" Width="4" Height="4"
+                                                            <!-- Зрачок -->
+                                                            <Ellipse Canvas.Left="6" Canvas.Top="6" Width="4" Height="4"
                                                              Fill="{StaticResource TextSecondaryBrush}"/>
-                                                    <!-- Линия перечеркивания -->
-                                                    <Line X1="2" Y1="2" X2="14" Y2="14"
+                                                            <!-- Линия перечеркивания -->
+                                                            <Line X1="2" Y1="2" X2="14" Y2="14"
                                                           Stroke="{StaticResource TextSecondaryBrush}"
                                                           StrokeThickness="1.5"/>
-                                                </Canvas>
-                                                <!-- Открытый глаз -->
-                                                <Canvas x:Name="ConfirmEyeOpenIcon" Visibility="Collapsed">
-                                                    <!-- Глаз -->
-                                                    <Path Fill="{StaticResource TextSecondaryBrush}"
+                                                        </Canvas>
+                                                        <!-- Открытый глаз -->
+                                                        <Canvas x:Name="ConfirmEyeOpenIcon" Visibility="Collapsed">
+                                                            <!-- Глаз -->
+                                                            <Path Fill="{StaticResource TextSecondaryBrush}"
                                                           Data="M1,8 C1,8 3.5,3 8,3 C12.5,3 15,8 15,8 C15,8 12.5,13 8,13 C3.5,13 1,8 1,8 Z"/>
-                                                    <!-- Белок глаза -->
-                                                    <Ellipse Canvas.Left="5" Canvas.Top="5" Width="6" Height="6"
+                                                            <!-- Белок глаза -->
+                                                            <Ellipse Canvas.Left="5" Canvas.Top="5" Width="6" Height="6"
                                                              Fill="White"/>
-                                                    <!-- Зрачок -->
-                                                    <Ellipse Canvas.Left="6.5" Canvas.Top="6.5" Width="3" Height="3"
+                                                            <!-- Зрачок -->
+                                                            <Ellipse Canvas.Left="6.5" Canvas.Top="6.5" Width="3" Height="3"
                                                              Fill="{StaticResource TextSecondaryBrush}"/>
-                                                </Canvas>
+                                                        </Canvas>
+                                                    </Grid>
+                                                </Button>
                                             </Grid>
-                                        </Button>
-                                    </Grid>
-                                </StackPanel>
+                                        </StackPanel>
 
-                                <!-- Кнопки управления -->
-                                <StackPanel Grid.Column="1" Grid.Row="1" Margin="0,0,16,0" Orientation="Horizontal" VerticalAlignment="Bottom">
-                                    <Button Content="✓ Изменить" Style="{StaticResource PrimaryButton}"
+                                        <!-- Кнопки управления -->
+                                        <StackPanel Grid.Column="1" Grid.Row="1" Margin="0,0,16,0" Orientation="Horizontal" VerticalAlignment="Bottom">
+                                            <Button Content="✓ Изменить" Style="{StaticResource PrimaryButton}"
                                             Click="ChangePasswordClick" Margin="0,0,8,0"/>
-                                    <Button Content="ℹ️ Справка" Style="{StaticResource SecondaryButton}"
+                                            <Button Content="ℹ️ Справка" Style="{StaticResource SecondaryButton}"
                                             Background="#6B7280" Foreground="White" BorderBrush="#6B7280"
                                             Click="ResetPasswordClick"/>
-                                </StackPanel>
+                                        </StackPanel>
 
-                                <!-- Информация -->
-                                <Border Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="4"
+                                        <!-- Информация -->
+                                        <Border Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="4"
                                         Background="#EFF6FF" BorderBrush="#DBEAFE" BorderThickness="1"
                                         CornerRadius="8" Padding="16" Margin="0,20,0,0">
-                                    <StackPanel>
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                            <Border Background="#3B82F6" Width="20" Height="20" CornerRadius="10" Margin="0,0,8,0">
-                                                <TextBlock Text="i" FontSize="12" FontWeight="Bold"
+                                            <StackPanel>
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                    <Border Background="#3B82F6" Width="20" Height="20" CornerRadius="10" Margin="0,0,8,0">
+                                                        <TextBlock Text="i" FontSize="12" FontWeight="Bold"
                                                            Foreground="White" HorizontalAlignment="Center"
                                                            VerticalAlignment="Center"/>
-                                            </Border>
-                                            <TextBlock Text="Справочная информация" FontSize="14" FontWeight="SemiBold"
+                                                    </Border>
+                                                    <TextBlock Text="Справочная информация" FontSize="14" FontWeight="SemiBold"
                                                        Foreground="{StaticResource TextPrimaryBrush}"/>
-                                        </StackPanel>
-                                        <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" LineHeight="18">
+                                                </StackPanel>
+                                                <TextBlock FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" LineHeight="18">
                                             <Run Text="• Минимальная длина пароля: 6 символов (требование Supabase)"/>
                                             <LineBreak/>
                                             <Run Text="• Это пароль для входа в облачную базу данных"/>
@@ -941,42 +2082,160 @@
                                             <Run Text="• Пароль используется для аутентификации в системе"/>
                                             <LineBreak/>
                                             <Run Text="• Изменения применяются немедленно в базе данных"/>
-                                        </TextBlock>
+                                                </TextBlock>
 
-                                        <!-- Кнопка показа текущей информации -->
-                                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                            <Button Content="🔍 Показать информацию о пользователе" 
+                                                <!-- Кнопка показа текущей информации -->
+                                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                                    <Button Content="🔍 Показать информацию о пользователе" 
                                                     Style="{StaticResource SecondaryButton}"
                                                     Click="ShowCurrentPassword_Click"
                                                     FontSize="12" Height="32"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </Border>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
 
-                                <!-- Сообщение об ошибке -->
-                                <Border x:Name="ErrorMessage"
+                                        <!-- Сообщение об ошибке -->
+                                        <Border x:Name="ErrorMessage"
                                         Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="4"
                                         Style="{StaticResource ErrorCardStyle}"
                                         Visibility="Collapsed" Margin="0,16,0,0">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Border Background="{StaticResource ErrorBrush}"
+                                            <StackPanel Orientation="Horizontal">
+                                                <Border Background="{StaticResource ErrorBrush}"
                                                 Width="20" Height="20" CornerRadius="10"
                                                 Margin="0,0,8,0">
-                                            <TextBlock Text="!" FontSize="12" FontWeight="Bold"
+                                                    <TextBlock Text="!" FontSize="12" FontWeight="Bold"
                                                        Foreground="White" HorizontalAlignment="Center"
                                                        VerticalAlignment="Center"/>
-                                        </Border>
-                                        <TextBlock x:Name="ErrorMessageText"
+                                                </Border>
+                                                <TextBlock x:Name="ErrorMessageText"
                                                    FontSize="13" FontWeight="Medium"
                                                    Foreground="{StaticResource ErrorBrush}"
                                                    TextWrapping="Wrap" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Border>
-                            </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
+
                 </StackPanel>
             </ScrollViewer>
         </Grid>
+
+        <!-- Экран загрузки -->
+        <Border x:Name="LoadingOverlay" 
+                Grid.RowSpan="2"
+                Background="#CC000000" 
+                Visibility="Visible"
+                Panel.ZIndex="1000">
+            <Border Background="White" 
+                    CornerRadius="16" 
+                    Padding="40,30"
+                    HorizontalAlignment="Center" 
+                    VerticalAlignment="Center"
+                    MaxWidth="500"
+                    Effect="{StaticResource CardShadow}">
+                <StackPanel HorizontalAlignment="Center">
+                    <!-- Анимированный индикатор загрузки -->
+                    <Grid Width="80" Height="80" Margin="0,0,0,24">
+                        <Ellipse x:Name="LoadingRing1" 
+                                 Width="60" Height="60" 
+                                 Stroke="{StaticResource PrimaryBrush}" 
+                                 StrokeThickness="6"
+                                 StrokeDashArray="15 85"
+                                 RenderTransformOrigin="0.5,0.5">
+                            <Ellipse.RenderTransform>
+                                <RotateTransform x:Name="LoadingRotation1"/>
+                            </Ellipse.RenderTransform>
+                        </Ellipse>
+                        <Ellipse x:Name="LoadingRing2" 
+                                 Width="40" Height="40" 
+                                 Stroke="#10B981" 
+                                 StrokeThickness="4"
+                                 StrokeDashArray="10 90"
+                                 RenderTransformOrigin="0.5,0.5">
+                            <Ellipse.RenderTransform>
+                                <RotateTransform x:Name="LoadingRotation2"/>
+                            </Ellipse.RenderTransform>
+                        </Ellipse>
+                        <Ellipse x:Name="LoadingRing3" 
+                                 Width="20" Height="20" 
+                                 Stroke="#8B5CF6" 
+                                 StrokeThickness="3"
+                                 StrokeDashArray="5 95"
+                                 RenderTransformOrigin="0.5,0.5">
+                            <Ellipse.RenderTransform>
+                                <RotateTransform x:Name="LoadingRotation3"/>
+                            </Ellipse.RenderTransform>
+                        </Ellipse>
+                    </Grid>
+
+                    <!-- Заголовок -->
+                    <TextBlock Text="Инициализация приложения" 
+                               FontSize="24" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimaryBrush}"
+                               HorizontalAlignment="Center" 
+                               Margin="0,0,0,12"/>
+
+                    <!-- Описание текущего процесса -->
+                    <TextBlock x:Name="LoadingStatusText" 
+                               Text="Подключение к облачной базе данных..." 
+                               FontSize="16"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               HorizontalAlignment="Center" 
+                               Margin="0,0,0,24"
+                               TextAlignment="Center"
+                               LineHeight="22"/>
+
+                    <!-- Прогресс-бар -->
+                    <Border Background="#F3F4F6" 
+                            CornerRadius="8" 
+                            Height="8" 
+                            Width="300" 
+                            Margin="0,0,0,20">
+                        <Border x:Name="LoadingProgressBar"
+                                Background="{StaticResource PrimaryBrush}"
+                                CornerRadius="8"
+                                HorizontalAlignment="Left"
+                                Width="0"/>
+                    </Border>
+
+                    <!-- Список выполненных задач -->
+                    <StackPanel x:Name="LoadingTasksList" 
+                                HorizontalAlignment="Left" 
+                                MaxWidth="400">
+                        <!-- Задачи будут добавляться динамически -->
+                    </StackPanel>
+
+                    <!-- Информация о режиме работы -->
+                    <Border Background="#EFF6FF" 
+                            BorderBrush="#DBEAFE" 
+                            BorderThickness="1"
+                            CornerRadius="8" 
+                            Padding="16,12" 
+                            Margin="0,20,0,0"
+                            MaxWidth="400">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Background="#3B82F6" 
+                                    Width="20" Height="20" 
+                                    CornerRadius="10" 
+                                    Margin="0,0,12,0">
+                                <TextBlock Text="i" FontSize="12" FontWeight="Bold"
+                                           Foreground="White" 
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock x:Name="LoadingModeText"
+                                       Text="Инициализация системы управления ценами..."
+                                       FontSize="13" 
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+        </Border>
     </Grid>
 </Window>
